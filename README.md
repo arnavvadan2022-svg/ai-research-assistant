@@ -1,15 +1,17 @@
-# 🧠 AI Research Assistant
+# 🔬 Quantum Computing & Quantum Mechanics Chatbot
 
-A powerful web application that helps researchers discover, analyze, and manage academic papers using AI-powered tools.
+An intelligent chatbot specialized in quantum computing and quantum mechanics, powered by AI and backed by research papers and web sources.
 
 ## ✨ Features
 
-- 🔍 **Paper Search**: Search academic papers from arXiv database
-- 🤖 **AI Summarization**: Automatically generate summaries of research papers
-- 📊 **Smart Analysis**: Analyze papers for methodology, findings, and implications
-- 💾 **Save Papers**: Bookmark and organize your favorite papers
-- 📜 **Search History**: Track your research queries
-- 🔐 **User Authentication**: Secure login and registration system
+- 🔮 **Quantum Specialization**: Only answers quantum computing and quantum mechanics questions
+- 📚 **Dual Source Intelligence**: Combines information from arXiv research papers and web search
+- 🤖 **AI-Powered Answers**: Uses Hugging Face transformers for natural language understanding
+- 💬 **Conversational Memory**: Maintains context across multiple queries in a session
+- 📖 **Source Citations**: Provides clear references to arXiv papers and web sources
+- 🎯 **Smart Query Validation**: Automatically detects non-quantum questions and suggests relevant topics
+- 🔐 **User Authentication**: Secure login and session management
+- 💾 **Chat History**: Save and revisit previous conversations
 - 🐳 **Docker Support**: Easy deployment with Docker
 
 ## 🚀 Quick Start
@@ -17,8 +19,9 @@ A powerful web application that helps researchers discover, analyze, and manage 
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 15+
-- OpenAI API Key (optional, for AI features)
+- API Keys:
+  - SERP API key (free tier: https://serpapi.com/users/sign_up)
+  - Hugging Face API key (optional, for better AI answers)
 
 ### Installation
 
@@ -39,18 +42,16 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. **Set up PostgreSQL database**
-```bash
-createdb research_assistant
-```
-
-5. **Configure environment variables**
+4. **Configure environment variables**
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your configuration:
+# - SERP_API_KEY (required)
+# - HUGGINGFACE_API_KEY (optional but recommended)
+# - SECRET_KEY (required for sessions)
 ```
 
-6. **Run the application**
+5. **Run the application**
 ```bash
 python app.py
 ```
@@ -61,10 +62,12 @@ Visit `http://localhost:5000` in your browser.
 
 ### Using Docker Compose (Recommended)
 
-1. **Clone the repository**
+1. **Clone and configure**
 ```bash
 git clone https://github.com/arnavvadan2022-svg/ai-research-assistant.git
 cd ai-research-assistant
+cp .env.example .env
+# Edit .env with your API keys
 ```
 
 2. **Start the application**
@@ -74,43 +77,43 @@ docker-compose up --build
 
 The application will be available at `http://localhost:5000`
 
-### Manual Docker Setup
-
-1. **Build the image**
-```bash
-docker build -t ai-research-assistant .
-```
-
-2. **Run the container**
-```bash
-docker run -p 5000:5000 \
-  -e DB_HOST=your-db-host \
-  -e DB_PASSWORD=your-db-password \
-  -e SECRET_KEY=your-secret-key \
-  -e OPENAI_API_KEY=your-openai-key \
-  ai-research-assistant
-```
-
 ## 📖 Usage
 
 ### 1. Register/Login
 - Create a new account or sign in with existing credentials
 - Your session will be maintained with JWT tokens
 
-### 2. Search Papers
-- Enter keywords, topics, or paper titles in the search bar
-- Select the maximum number of results
-- Click "Search" to find relevant papers from arXiv
+### 2. Ask Quantum Questions
+- Enter questions about quantum computing or quantum mechanics
+- The system validates that questions are quantum-related
+- Non-quantum questions receive polite suggestions for quantum topics
 
-### 3. View and Analyze
-- View paper details including abstract, authors, and publication date
-- Click "Summarize" to generate AI-powered summaries
-- Download PDFs directly from arXiv
+### 3. Get AI-Powered Answers
+- Answers are generated from:
+  - arXiv research papers (quantum physics categories)
+  - Web search results (via SERP API)
+  - Hugging Face AI models
+- All sources are cited with clear references
 
-### 4. Manage Papers
-- Save papers to your personal library
-- View your saved papers anytime
-- Track your search history
+### 4. Manage Conversations
+- Start new chat sessions
+- View chat history
+- Continue previous conversations
+- Delete old sessions
+
+## 🎯 Supported Quantum Topics
+
+The chatbot can help with:
+
+- **Quantum Computing**: qubits, quantum gates, quantum circuits, quantum algorithms
+- **Quantum Algorithms**: Shor's algorithm, Grover's algorithm, VQE, QAOA
+- **Quantum Error Correction**: QEC, fault-tolerant quantum computing
+- **Quantum Information**: quantum entanglement, quantum teleportation, quantum communication
+- **Quantum Mechanics**: wave functions, quantum states, uncertainty principle, quantum measurement
+- **Quantum Hardware**: superconducting qubits, ion traps, photonic quantum computers
+- **Quantum Cryptography**: quantum key distribution, quantum security
+- **Quantum Materials**: quantum dots, topological insulators, quantum hall effect
+- **Advanced Topics**: quantum supremacy, NISQ devices, quantum simulation
 
 ## 🛠️ Configuration
 
@@ -123,45 +126,48 @@ Create a `.env` file with the following variables:
 SECRET_KEY=your-secret-key-here
 DEBUG=False
 
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=research_assistant
-DB_USER=postgres
-DB_PASSWORD=your-password
-
-# OpenAI API Key (optional)
-OPENAI_API_KEY=your-openai-api-key
+# API Keys
+HUGGINGFACE_API_KEY=your-huggingface-api-key
+SERP_API_KEY=your-serpapi-key
 
 # Application Settings
-MAX_SEARCH_RESULTS=50
-SUMMARY_MAX_LENGTH=500
+MAX_ARXIV_PAPERS=5
+MAX_WEB_RESULTS=5
+CONVERSATION_HISTORY_LIMIT=10
+HF_MODEL=google/flan-t5-large
 ```
+
+### Hugging Face Models
+
+Supported models (configurable via `HF_MODEL`):
+- `google/flan-t5-large` (default, recommended)
+- `meta-llama/Llama-2-7b-chat-hf`
+- `mistralai/Mistral-7B-Instruct-v0.2`
 
 ## 🏗️ Project Structure
 
 ```
 ai-research-assistant/
-├── app.py                 # Main Flask application
-├── models.py              # Database models
-├── config.py              # Configuration management
-├── requirements.txt       # Python dependencies
-├── Dockerfile            # Docker configuration
-├── docker-compose.yml    # Docker Compose setup
-├── .env.example          # Environment variables template
-├── .gitignore           # Git ignore rules
-├── README.md            # Documentation
+├── app.py                          # Main Flask application
+├── config.py                       # Configuration management
+├── requirements.txt                # Python dependencies
+├── Dockerfile                      # Docker configuration
+├── docker-compose.yml              # Docker Compose setup
+├── .env.example                    # Environment variables template
 ├── utils/
-│   ├── database.py       # Database operations
-│   ├── paper_search.py   # ArXiv API integration
-│   └── ai_processor.py   # AI summarization & analysis
+│   ├── database.py                 # Database operations
+│   ├── paper_search.py             # ArXiv API integration
+│   ├── serp_search.py              # SERP API integration
+│   ├── quantum_validator.py        # Query validation
+│   ├── quantum_ai_processor.py     # AI answer generation
+│   └── conversation_manager.py     # Chat session management
 ├── templates/
-│   └── index.html        # Frontend HTML
+│   └── index.html                  # Frontend HTML
 └── static/
     ├── css/
-    │   └── style.css     # Styling
+    │   └── style.css               # Styling
     └── js/
-        └── main.js       # Frontend JavaScript
+        └── main.js                 # Frontend JavaScript
 ```
 
 ## 🔌 API Endpoints
@@ -170,16 +176,42 @@ ai-research-assistant/
 - `POST /api/register` - Register new user
 - `POST /api/login` - User login
 
-### Papers
-- `POST /api/search` - Search papers
-- `POST /api/summarize` - Summarize paper
-- `POST /api/analyze` - Analyze paper
-- `GET /api/papers` - Get saved papers
-- `DELETE /api/papers/<id>` - Delete paper
+### Quantum Chat
+- `POST /api/chat` - Send quantum question and get AI answer
+- `POST /api/validate-query` - Validate if query is quantum-related
 
-### User
-- `GET /api/history` - Get search history
+### Conversation Management
+- `GET /api/sessions` - Get all chat sessions
+- `GET /api/sessions/<session_id>` - Get specific session history
+- `DELETE /api/sessions/<session_id>` - Delete a session
+
+### Utility
 - `GET /api/health` - Health check
+
+## 🧪 Example Queries
+
+### Valid Quantum Questions:
+- "What is quantum entanglement and how does it work?"
+- "Explain Shor's algorithm for integer factorization"
+- "How does quantum error correction work?"
+- "What are the differences between gate-based and annealing quantum computers?"
+- "Explain the concept of quantum supremacy"
+
+### Non-Quantum Questions:
+If you ask about non-quantum topics, the chatbot will:
+1. Politely decline to answer
+2. Suggest relevant quantum topics
+3. Guide you to ask quantum-related questions
+
+## 🔍 How It Works
+
+1. **Query Validation**: Checks if question is quantum-related using keyword matching
+2. **Source Retrieval**: 
+   - Searches arXiv for relevant quantum physics papers
+   - Searches web using SERP API for additional context
+3. **Context Building**: Combines paper abstracts and web snippets
+4. **AI Generation**: Uses Hugging Face models to generate comprehensive answers
+5. **Citation**: Adds references to all sources used
 
 ## 🤝 Contributing
 
@@ -197,13 +229,23 @@ This project is licensed under the MIT License.
 ## 🙏 Acknowledgments
 
 - [arXiv](https://arxiv.org/) for providing open access to research papers
-- [OpenAI](https://openai.com/) for AI-powered features
+- [SERP API](https://serpapi.com/) for web search capabilities
+- [Hugging Face](https://huggingface.co/) for AI models
 - [Flask](https://flask.palletsprojects.com/) for the web framework
 
 ## 📧 Support
 
 For support, email arnav.vadan2022@vitstudent.ac.in or open an issue on GitHub.
 
+## 🔒 Security
+
+- No API keys are stored in the repository
+- All user passwords are hashed
+- JWT tokens for secure authentication
+- SQL injection protection via parameterized queries
+
 ---
 
 Made with ❤️ by arnavvadan2022-svg
+
+**Note**: This is a specialized quantum computing assistant. For general AI research assistance, please use the original version.

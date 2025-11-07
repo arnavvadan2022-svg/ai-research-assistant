@@ -6,7 +6,10 @@ import os
 from dotenv import load_dotenv
 from utils.database import Database
 from utils.paper_search import PaperSearch
-from utils.ai_processor import AIProcessor
+from utils.serp_search import SerpSearch
+from utils.quantum_validator import QuantumValidator
+from utils.quantum_ai_processor import QuantumAIProcessor
+from utils.conversation_manager import ConversationManager
 import jwt
 
 load_dotenv()
@@ -17,7 +20,10 @@ CORS(app)
 
 db = Database()
 paper_search = PaperSearch()
-ai_processor = AIProcessor()
+serp_search = SerpSearch()
+quantum_validator = QuantumValidator()
+ai_processor = QuantumAIProcessor()
+conversation_manager = ConversationManager(db)
 
 
 # Authentication decorator
@@ -108,6 +114,185 @@ def login():
     except Exception as e:
         print(f"Login error: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat', methods=['POST'])
+@token_required
+def quantum_chat(current_user):
+    """
+    Main quantum chatbot endpoint.
+    Validates quantum query, fetches sources, generates answer.
+    """
+    try:
+        data = request.get_json()
+        question = data.get('question')
+        session_id = data.get('session_id')
+        
+        if not question:
+            return jsonify({'error': 'Question is required'}), 400
+        
+        if app.config.get('DEBUG'):
+            print(f"💬 Quantum chat question from user {current_user['id']}")
+        
+        # Create new session if not provided
+        if not session_id:
+            session_id = conversation_manager.create_session(current_user['id'])
+            print(f"📝 Created new session: {session_id}")
+        
+        # Save user message
+        conversation_manager.add_message(session_id, current_user['id'], 'user', question)
+        
+        # Validate if question is quantum-related
+        validation = quantum_validator.validate(question)
+        
+        if not validation['is_quantum']:
+            # Not a quantum question - politely decline
+            rejection_message = quantum_validator.get_rejection_message()
+            conversation_manager.add_message(
+                session_id, current_user['id'], 'assistant', rejection_message
+            )
+            
+            return jsonify({
+                'session_id': session_id,
+                'answer': rejection_message,
+                'is_quantum': False,
+                'suggested_topics': validation['suggested_topics'],
+                'sources': []
+            }), 200
+        
+        print(f"✅ Quantum query validated (confidence: {validation['confidence']})")
+        
+        # Fetch sources in parallel
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        arxiv_papers = []
+        web_results = []
+        
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_arxiv = executor.submit(paper_search.search, question, 5)
+            future_web = executor.submit(serp_search.search, question, 5)
+            
+            for future in as_completed([future_arxiv, future_web]):
+                if future == future_arxiv:
+                    arxiv_papers = future.result()
+                else:
+                    web_results = future.result()
+        
+        # Get conversation context
+        conversation_context = conversation_manager.get_context_for_model(
+            session_id, current_user['id'], max_messages=4
+        )
+        
+        # Format sources for AI model
+        arxiv_context = paper_search.format_papers_for_context(arxiv_papers)
+        web_context = serp_search.format_results_for_context(web_results)
+        
+        # Generate answer
+        answer = ai_processor.generate_answer(
+            question, arxiv_context, web_context, conversation_context
+        )
+        
+        # Format sources for response
+        sources = conversation_manager.format_sources(arxiv_papers, web_results)
+        
+        # Add citations to answer
+        final_answer = ai_processor.format_answer_with_citations(answer, sources)
+        
+        # Save assistant message
+        conversation_manager.add_message(
+            session_id, current_user['id'], 'assistant', final_answer, sources
+        )
+        
+        print(f"✅ Generated answer with {len(sources)} sources")
+        
+        return jsonify({
+            'session_id': session_id,
+            'answer': final_answer,
+            'is_quantum': True,
+            'confidence': validation['confidence'],
+            'sources': sources,
+            'arxiv_papers': arxiv_papers,
+            'web_results': web_results
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Chat error: {str(e)}")
+        import traceback
+        if app.config.get('DEBUG'):
+            traceback.print_exc()
+        return jsonify({'error': 'Failed to process question. Please try again.'}), 500
+
+
+@app.route('/api/sessions', methods=['GET'])
+@token_required
+def get_sessions(current_user):
+    """Get all conversation sessions for the user."""
+    try:
+        sessions = conversation_manager.get_user_sessions(current_user['id'])
+        return jsonify({
+            'sessions': sessions,
+            'count': len(sessions)
+        }), 200
+    except Exception as e:
+        print(f"❌ Get sessions error: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve sessions'}), 500
+
+
+@app.route('/api/sessions/<session_id>', methods=['GET'])
+@token_required
+def get_session_history(current_user, session_id):
+    """Get conversation history for a specific session."""
+    try:
+        history = conversation_manager.get_conversation_history(
+            session_id, current_user['id']
+        )
+        return jsonify({
+            'session_id': session_id,
+            'messages': history,
+            'count': len(history)
+        }), 200
+    except Exception as e:
+        print(f"❌ Get history error: {str(e)}")
+        return jsonify({'error': 'Failed to retrieve conversation history'}), 500
+
+
+@app.route('/api/sessions/<session_id>', methods=['DELETE'])
+@token_required
+def delete_session(current_user, session_id):
+    """Delete a conversation session."""
+    try:
+        success = conversation_manager.delete_session(session_id, current_user['id'])
+        if success:
+            return jsonify({'message': 'Session deleted successfully'}), 200
+        else:
+            return jsonify({'error': 'Session not found'}), 404
+    except Exception as e:
+        print(f"❌ Delete session error: {str(e)}")
+        return jsonify({'error': 'Failed to delete session'}), 500
+
+
+@app.route('/api/validate-query', methods=['POST'])
+@token_required
+def validate_query(current_user):
+    """Validate if a query is quantum-related."""
+    try:
+        data = request.get_json()
+        query = data.get('query')
+        
+        if not query:
+            return jsonify({'error': 'Query is required'}), 400
+        
+        validation = quantum_validator.validate(query)
+        
+        return jsonify({
+            'is_quantum': validation['is_quantum'],
+            'confidence': validation['confidence'],
+            'matched_keywords': validation['matched_keywords'],
+            'suggested_topics': validation['suggested_topics']
+        }), 200
+    except Exception as e:
+        print(f"❌ Validation error: {str(e)}")
+        return jsonify({'error': 'Failed to validate query'}), 500
 
 
 @app.route('/api/search', methods=['POST'])
@@ -285,7 +470,7 @@ def health_check():
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("🚀 Starting AI Research Assistant")
+    print("🔬 Starting Quantum Computing Assistant")
     print("=" * 50)
     db.init_db()
     print("=" * 50)

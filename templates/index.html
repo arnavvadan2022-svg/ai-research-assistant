@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Research Assistant</title>
+    <title>Quantum Computing Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,15 +13,15 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-brand">
-                <i class="fas fa-brain"></i>
-                <span>AI Research Assistant</span>
+                <i class="fas fa-atom"></i>
+                <span>Quantum Computing Assistant</span>
             </div>
             <div class="nav-menu" id="navMenu">
-                <button class="btn btn-secondary" id="savedPapersBtn">
-                    <i class="fas fa-bookmark"></i> Saved Papers
+                <button class="btn btn-secondary" id="newChatBtn" style="display: none;">
+                    <i class="fas fa-plus"></i> New Chat
                 </button>
-                <button class="btn btn-secondary" id="historyBtn">
-                    <i class="fas fa-history"></i> History
+                <button class="btn btn-secondary" id="sessionsBtn" style="display: none;">
+                    <i class="fas fa-history"></i> Chat History
                 </button>
                 <button class="btn btn-secondary" id="logoutBtn" style="display: none;">
                     <i class="fas fa-sign-out-alt"></i> Logout
@@ -36,6 +36,7 @@
         <div class="auth-container" id="authContainer">
             <div class="auth-box">
                 <h2 id="authTitle">Sign In</h2>
+                <p class="auth-subtitle">Access your Quantum Computing Assistant</p>
                 <form id="authForm">
                     <div class="form-group" id="usernameGroup" style="display: none;">
                         <label>Username</label>
@@ -58,71 +59,87 @@
             </div>
         </div>
 
-        <!-- Main App -->
+        <!-- Main App - Chat Interface -->
         <div class="app-container" id="appContainer" style="display: none;">
-            <!-- Search Section -->
-            <div class="search-section">
-                <h1>Search Research Papers</h1>
-                <p class="subtitle">Discover and analyze academic papers with AI assistance</p>
+            <!-- Welcome Section (shown when no chat is active) -->
+            <div class="welcome-section" id="welcomeSection">
+                <div class="welcome-content">
+                    <div class="quantum-icon">
+                        <i class="fas fa-atom"></i>
+                    </div>
+                    <h1>Quantum Computing & Quantum Mechanics Assistant</h1>
+                    <p class="subtitle">Ask me anything about quantum computing, quantum mechanics, or quantum physics!</p>
+                    
+                    <div class="suggested-topics">
+                        <h3>💡 Suggested Topics:</h3>
+                        <div class="topics-grid">
+                            <div class="topic-card" data-topic="What is quantum entanglement?">
+                                <i class="fas fa-link"></i>
+                                <span>Quantum Entanglement</span>
+                            </div>
+                            <div class="topic-card" data-topic="Explain Shor's algorithm">
+                                <i class="fas fa-key"></i>
+                                <span>Quantum Algorithms</span>
+                            </div>
+                            <div class="topic-card" data-topic="What is quantum error correction?">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Error Correction</span>
+                            </div>
+                            <div class="topic-card" data-topic="How do qubits work?">
+                                <i class="fas fa-microchip"></i>
+                                <span>Qubits & Gates</span>
+                            </div>
+                            <div class="topic-card" data-topic="Explain quantum supremacy">
+                                <i class="fas fa-rocket"></i>
+                                <span>Quantum Supremacy</span>
+                            </div>
+                            <div class="topic-card" data-topic="What is quantum cryptography?">
+                                <i class="fas fa-lock"></i>
+                                <span>Quantum Cryptography</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div class="chat-section" id="chatSection" style="display: none;">
+                <div class="chat-messages" id="chatMessages"></div>
                 
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Enter research topic, keywords, or paper title..." class="search-input">
-                    <button id="searchBtn" class="btn btn-primary">
-                        <i class="fas fa-search"></i> Search
+                <!-- Typing Indicator -->
+                <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <span>Searching quantum knowledge...</span>
+                </div>
+            </div>
+
+            <!-- Input Section (always visible when logged in) -->
+            <div class="input-section" id="inputSection">
+                <div class="input-container">
+                    <textarea 
+                        id="questionInput" 
+                        placeholder="Ask a quantum computing or quantum mechanics question..." 
+                        rows="1"
+                        class="question-input"
+                    ></textarea>
+                    <button id="sendBtn" class="btn btn-primary send-btn">
+                        <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
-
-                <div class="search-options">
-                    <label>
-                        Max Results:
-                        <select id="maxResults" class="form-select">
-                            <option value="5">5</option>
-                            <option value="10" selected>10</option>
-                            <option value="20">20</option>
-                            <option value="50">50</option>
-                        </select>
-                    </label>
-                </div>
+                <p class="input-hint">
+                    <i class="fas fa-info-circle"></i>
+                    This assistant specializes in quantum computing and quantum mechanics topics
+                </p>
             </div>
 
-            <!-- Loading Indicator -->
-            <div class="loading" id="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p>Searching for papers...</p>
-            </div>
-
-            <!-- Results Section -->
-            <div class="results-section" id="resultsSection" style="display: none;">
-                <div class="results-header">
-                    <h2>Search Results</h2>
-                    <span class="results-count" id="resultsCount">0 papers found</span>
-                </div>
-                <div class="results-grid" id="resultsGrid"></div>
-            </div>
-
-            <!-- Paper Details Modal -->
-            <div class="modal" id="paperModal">
+            <!-- Sessions Modal -->
+            <div class="modal" id="sessionsModal">
                 <div class="modal-content">
                     <span class="close">&times;</span>
-                    <div id="paperDetails"></div>
-                </div>
-            </div>
-
-            <!-- Saved Papers Modal -->
-            <div class="modal" id="savedPapersModal">
-                <div class="modal-content">
-                    <span class="close">&times;</span>
-                    <h2>Saved Papers</h2>
-                    <div id="savedPapersList"></div>
-                </div>
-            </div>
-
-            <!-- History Modal -->
-            <div class="modal" id="historyModal">
-                <div class="modal-content">
-                    <span class="close">&times;</span>
-                    <h2>Search History</h2>
-                    <div id="historyList"></div>
+                    <h2>Chat History</h2>
+                    <div id="sessionsList"></div>
                 </div>
             </div>
         </div>
