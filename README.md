@@ -7,6 +7,7 @@ A powerful web application that helps researchers discover, analyze, and manage 
 - 🔍 **Paper Search**: Search academic papers from arXiv database
 - 🤖 **AI Summarization**: Automatically generate summaries of research papers
 - 📊 **Smart Analysis**: Analyze papers for methodology, findings, and implications
+- ⚛️ **Quantum Chatbot**: Specialized chatbot for quantum computing and quantum mechanics queries
 - 💾 **Save Papers**: Bookmark and organize your favorite papers
 - 📜 **Search History**: Track your research queries
 - 🔐 **User Authentication**: Secure login and registration system
@@ -17,8 +18,9 @@ A powerful web application that helps researchers discover, analyze, and manage 
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 15+
+- PostgreSQL 15+ (or SQLite for development)
 - OpenAI API Key (optional, for AI features)
+- SerpAPI Key (optional, for quantum chatbot web search)
 
 ### Installation
 
@@ -112,6 +114,18 @@ docker run -p 5000:5000 \
 - View your saved papers anytime
 - Track your search history
 
+### 5. Quantum Computing Chatbot
+- Ask questions specifically about quantum computing and quantum mechanics
+- The chatbot validates queries to ensure they're quantum-related
+- Get comprehensive answers combining:
+  - Quantum physics research papers from arXiv (quant-ph category)
+  - Current web information via SerpAPI (when API key is configured)
+- Example queries:
+  - "What is quantum entanglement?"
+  - "Explain Shor's algorithm"
+  - "How do superconducting qubits work?"
+  - "What is quantum error correction?"
+
 ## 🛠️ Configuration
 
 ### Environment Variables
@@ -133,6 +147,9 @@ DB_PASSWORD=your-password
 # OpenAI API Key (optional)
 OPENAI_API_KEY=your-openai-api-key
 
+# SerpAPI Key (optional, for quantum chatbot web search)
+SERPAPI_API_KEY=your-serpapi-api-key
+
 # Application Settings
 MAX_SEARCH_RESULTS=50
 SUMMARY_MAX_LENGTH=500
@@ -152,16 +169,17 @@ ai-research-assistant/
 ├── .gitignore           # Git ignore rules
 ├── README.md            # Documentation
 ├── utils/
-│   ├── database.py       # Database operations
-│   ├── paper_search.py   # ArXiv API integration
-│   └── ai_processor.py   # AI summarization & analysis
+│   ├── database.py          # Database operations
+│   ├── paper_search.py      # ArXiv API integration
+│   ├── ai_processor.py      # AI summarization & analysis
+│   └── quantum_chatbot.py   # Quantum computing chatbot
 ├── templates/
-│   └── index.html        # Frontend HTML
+│   └── index.html           # Frontend HTML
 └── static/
     ├── css/
-    │   └── style.css     # Styling
+    │   └── style.css        # Styling
     └── js/
-        └── main.js       # Frontend JavaScript
+        └── main.js          # Frontend JavaScript
 ```
 
 ## 🔌 API Endpoints
@@ -177,9 +195,82 @@ ai-research-assistant/
 - `GET /api/papers` - Get saved papers
 - `DELETE /api/papers/<id>` - Delete paper
 
+### Quantum Chatbot
+- `POST /api/quantum/chat` - Query the quantum computing chatbot
+
 ### User
 - `GET /api/history` - Get search history
 - `GET /api/health` - Health check
+
+## ⚛️ Quantum Chatbot Feature
+
+The Quantum Computing Chatbot is a specialized feature designed to help researchers and enthusiasts explore quantum computing and quantum mechanics topics.
+
+### Key Features
+
+1. **Domain Validation**: Automatically validates queries to ensure they're related to quantum computing or quantum mechanics
+2. **Multi-Source Information**: Combines research papers from arXiv and web results from SerpAPI
+3. **Intelligent Synthesis**: Provides comprehensive answers by synthesizing information from multiple sources
+4. **Quantum-Specific Search**: Targets the `quant-ph` (quantum physics) category on arXiv for relevant research papers
+
+### API Usage
+
+**Endpoint**: `POST /api/quantum/chat`
+
+**Request Body**:
+```json
+{
+  "query": "What is quantum entanglement?",
+  "max_papers": 10,
+  "max_web_results": 5
+}
+```
+
+**Response** (Success):
+```json
+{
+  "success": true,
+  "query": "What is quantum entanglement?",
+  "answer": "Comprehensive synthesized answer...",
+  "papers": [...],
+  "web_results": [...],
+  "sources_count": {
+    "papers": 5,
+    "web_results": 3
+  }
+}
+```
+
+**Response** (Invalid Query):
+```json
+{
+  "success": false,
+  "error": "This chatbot specializes in quantum computing and quantum mechanics topics...",
+  "query": "What is machine learning?"
+}
+```
+
+### Supported Topics
+
+The chatbot accepts queries about:
+- Quantum computing (qubits, quantum gates, quantum circuits, quantum algorithms)
+- Quantum mechanics (wave functions, uncertainty principle, quantum states)
+- Quantum algorithms (Shor's algorithm, Grover's algorithm, VQE, QAOA)
+- Quantum hardware (superconducting qubits, ion traps, quantum dots)
+- Quantum cryptography and communication
+- Quantum error correction
+- And many more quantum-related topics
+
+### Configuration
+
+To enable web search functionality, add your SerpAPI key to the `.env` file:
+```bash
+SERPAPI_API_KEY=your-serpapi-api-key-here
+```
+
+Get a free SerpAPI key at: https://serpapi.com/
+
+**Note**: The chatbot works without a SerpAPI key, but web search results will not be included.
 
 ## 🤝 Contributing
 

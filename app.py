@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from utils.database import Database
 from utils.paper_search import PaperSearch
 from utils.ai_processor import AIProcessor
+from utils.quantum_chatbot import QuantumChatbot
 import jwt
 
 load_dotenv()
@@ -18,6 +19,7 @@ CORS(app)
 db = Database()
 paper_search = PaperSearch()
 ai_processor = AIProcessor()
+quantum_chatbot = QuantumChatbot()
 
 
 # Authentication decorator
@@ -272,6 +274,49 @@ def get_query_history(current_user):
     except Exception as e:
         print(f"Get history error: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/quantum/chat', methods=['POST'])
+@token_required
+def quantum_chat(current_user):
+    """
+    Quantum computing chatbot endpoint.
+    Accepts queries about quantum computing/mechanics and returns comprehensive answers.
+    """
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        max_papers = data.get('max_papers', 10)
+        max_web_results = data.get('max_web_results', 5)
+        
+        if not query:
+            return jsonify({'error': 'Query is required'}), 400
+        
+        print(f"Quantum chatbot query from user {current_user['id']}: {query}")
+        
+        # Process the quantum query
+        response = quantum_chatbot.process_query(
+            query=query,
+            max_papers=max_papers,
+            max_web_results=max_web_results
+        )
+        
+        # Save query to history if it was valid
+        if response.get('success'):
+            db.save_query(current_user['id'], f"[QUANTUM] {query}")
+        
+        print(f"Quantum chatbot response generated: success={response.get('success')}")
+        
+        return jsonify(response), 200 if response.get('success') else 400
+        
+    except Exception as e:
+        print(f"Quantum chat error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': 'An error occurred while processing your quantum query. Please try again.'
+        }), 500
 
 
 @app.route('/api/health', methods=['GET'])

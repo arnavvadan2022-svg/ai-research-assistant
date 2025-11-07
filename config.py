@@ -17,6 +17,7 @@ class Config:
     
     # API Keys
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+    SERPAPI_API_KEY = os.getenv('SERPAPI_API_KEY', '')
     ARXIV_API_URL = 'http://export.arxiv.org/api/query'
     
     # Application Settings
