@@ -6,7 +6,6 @@ queries. It validates queries, searches arXiv for quantum papers, performs web s
 via SerpAPI, and synthesizes comprehensive responses.
 """
 
-import re
 from typing import Dict, List, Optional, Tuple
 import logging
 from config import Config
@@ -15,6 +14,20 @@ from utils.paper_search import PaperSearch
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Constants for response formatting
+MAX_PAPERS_TO_SHOW = 3
+MAX_AUTHORS_TO_SHOW = 3
+MAX_ABSTRACT_LENGTH = 200
+MAX_WEB_RESULTS_TO_SHOW = 3
+
+# Try to import SerpAPI library
+try:
+    from serpapi import GoogleSearch
+    SERPAPI_AVAILABLE = True
+except ImportError:
+    SERPAPI_AVAILABLE = False
+    logger.warning("google-search-results package not installed. Web search will be unavailable.")
 
 
 class QuantumChatbot:
@@ -146,9 +159,11 @@ class QuantumChatbot:
             logger.warning("SerpAPI key not configured, skipping web search")
             return []
         
+        if not SERPAPI_AVAILABLE:
+            logger.warning("SerpAPI library not available, skipping web search")
+            return []
+        
         try:
-            from serpapi import GoogleSearch
-            
             params = {
                 "q": query + " quantum computing OR quantum mechanics",
                 "api_key": self.serpapi_key,
@@ -173,9 +188,6 @@ class QuantumChatbot:
             
             logger.info(f"Found {len(web_results)} web results")
             return web_results
-        except ImportError:
-            logger.error("google-search-results package not installed")
-            return []
         except Exception as e:
             logger.error(f"Error searching web: {str(e)}")
             return []
@@ -223,22 +235,22 @@ class QuantumChatbot:
             answer_parts.append(f"📚 **Research Papers ({len(papers)} found):**")
             answer_parts.append("")
             
-            for i, paper in enumerate(papers[:3], 1):  # Show top 3 papers
+            for i, paper in enumerate(papers[:MAX_PAPERS_TO_SHOW], 1):
                 answer_parts.append(f"{i}. **{paper['title']}**")
-                answer_parts.append(f"   Authors: {', '.join(paper['authors'][:3])}")
+                answer_parts.append(f"   Authors: {', '.join(paper['authors'][:MAX_AUTHORS_TO_SHOW])}")
                 
                 # Create a brief snippet from abstract
                 abstract = paper.get('abstract', '')
-                if len(abstract) > 200:
-                    snippet = abstract[:200] + "..."
+                if len(abstract) > MAX_ABSTRACT_LENGTH:
+                    snippet = abstract[:MAX_ABSTRACT_LENGTH] + "..."
                 else:
                     snippet = abstract
                 answer_parts.append(f"   Summary: {snippet}")
                 answer_parts.append(f"   [Read more]({paper['url']})")
                 answer_parts.append("")
             
-            if len(papers) > 3:
-                answer_parts.append(f"   ... and {len(papers) - 3} more papers available")
+            if len(papers) > MAX_PAPERS_TO_SHOW:
+                answer_parts.append(f"   ... and {len(papers) - MAX_PAPERS_TO_SHOW} more papers available")
                 answer_parts.append("")
         else:
             answer_parts.append("📚 **Research Papers:** No arXiv papers found for this specific query.")
@@ -249,14 +261,14 @@ class QuantumChatbot:
             answer_parts.append(f"🌐 **Web Resources ({len(web_results)} found):**")
             answer_parts.append("")
             
-            for i, result in enumerate(web_results[:3], 1):  # Show top 3 results
+            for i, result in enumerate(web_results[:MAX_WEB_RESULTS_TO_SHOW], 1):
                 answer_parts.append(f"{i}. **{result['title']}**")
                 answer_parts.append(f"   {result['snippet']}")
                 answer_parts.append(f"   Source: [{result.get('source', 'Web')}]({result['link']})")
                 answer_parts.append("")
             
-            if len(web_results) > 3:
-                answer_parts.append(f"   ... and {len(web_results) - 3} more resources available")
+            if len(web_results) > MAX_WEB_RESULTS_TO_SHOW:
+                answer_parts.append(f"   ... and {len(web_results) - MAX_WEB_RESULTS_TO_SHOW} more resources available")
                 answer_parts.append("")
         else:
             if not self.serpapi_key:
