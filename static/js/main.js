@@ -268,8 +268,18 @@ function addMessage(role, content, sources = null) {
 }
 
 function formatMessage(text) {
-    // Simple formatting for better readability
-    let formatted = text
+    // Escape HTML to prevent XSS
+    const escapeHtml = (str) => {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    };
+    
+    // Escape the entire text first
+    let formatted = escapeHtml(text);
+    
+    // Then apply formatting with safe HTML
+    formatted = formatted
         .replace(/\n/g, '<br>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -277,10 +287,10 @@ function formatMessage(text) {
         .replace(/\[arXiv:(.*?)\]/g, '<span class="citation">[arXiv:$1]</span>')
         .replace(/\[Source: (.*?)\]/g, '<span class="citation">[Source: $1]</span>');
     
-    // Make URLs clickable
+    // Make URLs clickable - only for http/https URLs
     formatted = formatted.replace(
-        /(https?:\/\/[^\s<]+)/g,
-        '<a href="$1" target="_blank" rel="noopener">$1</a>'
+        /(https?:\/\/[^\s&<>]+)/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
     );
     
     return formatted;

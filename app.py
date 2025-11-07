@@ -218,8 +218,9 @@ def quantum_chat(current_user):
     except Exception as e:
         print(f"❌ Chat error: {str(e)}")
         import traceback
-        traceback.print_exc()
-        return jsonify({'error': f'Failed to process question: {str(e)}'}), 500
+        if app.config.get('DEBUG'):
+            traceback.print_exc()
+        return jsonify({'error': 'Failed to process question. Please try again.'}), 500
 
 
 @app.route('/api/sessions', methods=['GET'])
@@ -234,7 +235,7 @@ def get_sessions(current_user):
         }), 200
     except Exception as e:
         print(f"❌ Get sessions error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to retrieve sessions'}), 500
 
 
 @app.route('/api/sessions/<session_id>', methods=['GET'])
@@ -252,7 +253,7 @@ def get_session_history(current_user, session_id):
         }), 200
     except Exception as e:
         print(f"❌ Get history error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to retrieve conversation history'}), 500
 
 
 @app.route('/api/sessions/<session_id>', methods=['DELETE'])
@@ -267,7 +268,7 @@ def delete_session(current_user, session_id):
             return jsonify({'error': 'Session not found'}), 404
     except Exception as e:
         print(f"❌ Delete session error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to delete session'}), 500
 
 
 @app.route('/api/validate-query', methods=['POST'])
@@ -291,7 +292,7 @@ def validate_query(current_user):
         }), 200
     except Exception as e:
         print(f"❌ Validation error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to validate query'}), 500
 
 
 @app.route('/api/search', methods=['POST'])
