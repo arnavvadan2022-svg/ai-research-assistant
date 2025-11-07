@@ -11,6 +11,10 @@ from config import Config
 
 
 class QuantumAIProcessor:
+    # Constants
+    MAX_PROMPT_LENGTH = 1500
+    QUESTION_BUFFER_SIZE = 300
+    
     def __init__(self):
         self.api_key = Config.HUGGINGFACE_API_KEY
         self.model_name = Config.HF_MODEL
@@ -41,7 +45,7 @@ class QuantumAIProcessor:
                 if answer:
                     return answer
             except Exception as e:
-                print(f"⚠️ Hugging Face API error: {e}")
+                print(f"⚠️ Failed to generate answer using Hugging Face API: {e}")
         
         # Fallback to smart extraction if API fails
         return self._smart_answer(question, arxiv_context, web_context)
@@ -78,15 +82,14 @@ class QuantumAIProcessor:
         Generate answer using Hugging Face Inference API.
         """
         # Limit prompt length
-        max_prompt_length = 1500
-        if len(prompt) > max_prompt_length:
+        if len(prompt) > self.MAX_PROMPT_LENGTH:
             # Truncate while keeping the question
             parts = prompt.split("Question:")
             if len(parts) == 2:
-                context = parts[0][:max_prompt_length - 300]
+                context = parts[0][:self.MAX_PROMPT_LENGTH - self.QUESTION_BUFFER_SIZE]
                 prompt = context + "Question:" + parts[1]
             else:
-                prompt = prompt[:max_prompt_length]
+                prompt = prompt[:self.MAX_PROMPT_LENGTH]
         
         headers = {}
         if self.api_key:

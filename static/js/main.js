@@ -130,7 +130,7 @@ async function handleAuth(e) {
             currentUser = result.user;
             localStorage.setItem('authToken', authToken);
             showApp();
-            showNotification('Welcome! Ask me anything about quantum computing.', 'success');
+            showNotification('Welcome! Ask me anything about quantum computing or quantum mechanics.', 'success');
         } else {
             showNotification(result.error || 'Authentication failed', 'error');
         }
@@ -233,11 +233,12 @@ async function sendQuestion() {
             }
         } else {
             hideTyping();
-            showNotification(result.error || 'Failed to get answer', 'error');
+            showNotification(result.error || 'Failed to get answer from the server. Please try again.', 'error');
         }
     } catch (error) {
         hideTyping();
-        showNotification('Network error. Please try again.', 'error');
+        console.error('Chat error:', error);
+        showNotification('Failed to connect to the server. Please check your internet connection and try again.', 'error');
     }
 }
 

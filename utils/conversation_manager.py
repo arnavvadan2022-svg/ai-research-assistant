@@ -17,7 +17,9 @@ class ConversationManager:
             database: Database instance
         """
         self.db = database
-        self.max_history = 10  # Maximum number of messages to keep in context
+        # Get max history from config, default to 10
+        from config import Config
+        self.max_history = getattr(Config, 'CONVERSATION_HISTORY_LIMIT', 10)
     
     def add_message(self, session_id: str, user_id: int, role: str, 
                     content: str, sources: Optional[List[Dict]] = None) -> int:

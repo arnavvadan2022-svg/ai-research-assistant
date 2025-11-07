@@ -98,7 +98,8 @@ class SerpSearch:
             if domain.startswith('www.'):
                 domain = domain[4:]
             return domain
-        except:
+        except Exception as e:
+            print(f"Error parsing URL: {e}")
             return url
     
     def format_results_for_context(self, results: List[Dict]) -> str:

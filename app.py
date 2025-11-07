@@ -131,7 +131,8 @@ def quantum_chat(current_user):
         if not question:
             return jsonify({'error': 'Question is required'}), 400
         
-        print(f"💬 Quantum chat question: {question}")
+        if app.config.get('DEBUG'):
+            print(f"💬 Quantum chat question from user {current_user['id']}")
         
         # Create new session if not provided
         if not session_id:
