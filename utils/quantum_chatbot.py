@@ -344,6 +344,6 @@ class QuantumChatbot:
             logger.error(f"Error processing query: {str(e)}")
             return {
                 "success": False,
-                "error": f"An error occurred while processing your query: {str(e)}",
+                "error": "An error occurred while processing your query. Please try again or rephrase your question.",
                 "query": query
             }
