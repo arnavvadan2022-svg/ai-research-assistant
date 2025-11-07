@@ -315,7 +315,7 @@ def quantum_chat(current_user):
         traceback.print_exc()
         return jsonify({
             'success': False,
-            'error': f'An error occurred: {str(e)}'
+            'error': 'An error occurred while processing your quantum query. Please try again.'
         }), 500
 
 
