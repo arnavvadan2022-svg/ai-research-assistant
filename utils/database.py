@@ -61,6 +61,32 @@ class Database:
             )
         """)
 
+        # Create conversation sessions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversation_sessions (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Create conversation messages table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversation_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                user_id INTEGER,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                sources TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES conversation_sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+
         conn.commit()
         print("Database initialized successfully!")
 
@@ -179,3 +205,92 @@ class Database:
         """Close database connection"""
         if self.connection:
             self.connection.close()
+    # Conversation management methods
+    def create_conversation_session(self, user_id: int) -> str:
+        """Create a new conversation session"""
+        import uuid
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        session_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO conversation_sessions (id, user_id) VALUES (?, ?)",
+            (session_id, user_id)
+        )
+        conn.commit()
+        return session_id
+    
+    def save_conversation_message(self, session_id: str, user_id: int, 
+                                   role: str, content: str, sources: List[Dict] = None) -> int:
+        """Save a conversation message"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        sources_json = json.dumps(sources) if sources else None
+        
+        cursor.execute("""
+            INSERT INTO conversation_messages (session_id, user_id, role, content, sources)
+            VALUES (?, ?, ?, ?, ?)
+        """, (session_id, user_id, role, content, sources_json))
+        
+        # Update session last activity
+        cursor.execute(
+            "UPDATE conversation_sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = ?",
+            (session_id,)
+        )
+        
+        message_id = cursor.lastrowid
+        conn.commit()
+        return message_id
+    
+    def get_conversation_history(self, session_id: str, user_id: int, limit: int = 10) -> List[Dict]:
+        """Get conversation history for a session"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM conversation_messages 
+            WHERE session_id = ? AND user_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT ?
+        """, (session_id, user_id, limit))
+        
+        messages = cursor.fetchall()
+        result = []
+        for msg in reversed(messages):  # Reverse to get chronological order
+            msg_dict = dict(msg)
+            if msg_dict.get('sources'):
+                msg_dict['sources'] = json.loads(msg_dict['sources'])
+            result.append(msg_dict)
+        
+        return result
+    
+    def get_user_sessions(self, user_id: int, limit: int = 10) -> List[Dict]:
+        """Get all conversation sessions for a user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT s.*, 
+                   (SELECT COUNT(*) FROM conversation_messages WHERE session_id = s.id) as message_count
+            FROM conversation_sessions s
+            WHERE user_id = ? 
+            ORDER BY last_activity DESC 
+            LIMIT ?
+        """, (user_id, limit))
+        
+        sessions = cursor.fetchall()
+        return [dict(session) for session in sessions]
+    
+    def delete_conversation_session(self, session_id: str, user_id: int) -> bool:
+        """Delete a conversation session"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "DELETE FROM conversation_sessions WHERE id = ? AND user_id = ?",
+            (session_id, user_id)
+        )
+        
+        conn.commit()
+        return cursor.rowcount > 0
