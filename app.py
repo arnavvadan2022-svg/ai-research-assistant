@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 from utils.database import Database
 from utils.paper_search import PaperSearch
 from utils.ai_processor import AIProcessor
+from utils.knowledge_graph import KnowledgeGraphBuilder, KGSerializer
+from utils.dataset_generator import DatasetGenerator
+from utils.evaluation import EvaluationFramework
 import jwt
 
 load_dotenv()
@@ -18,6 +21,10 @@ CORS(app)
 db = Database()
 paper_search = PaperSearch()
 ai_processor = AIProcessor()
+kg_builder = KnowledgeGraphBuilder()
+kg_serializer = KGSerializer()
+dataset_generator = DatasetGenerator()
+evaluation_framework = EvaluationFramework()
 
 
 # Authentication decorator
@@ -281,6 +288,155 @@ def health_check():
         'timestamp': datetime.utcnow().isoformat(),
         'version': '1.0.0'
     }), 200
+
+
+# ---------------------------------------------------------------------------
+# Knowledge Graph endpoints
+# ---------------------------------------------------------------------------
+
+@app.route('/api/knowledge-graph', methods=['POST'])
+@token_required
+def build_knowledge_graph(current_user):
+    """Build a knowledge graph from document text using Groq."""
+    try:
+        data = request.get_json()
+        text = data.get('text')
+        context = data.get('context', '')
+
+        if not text:
+            return jsonify({'error': 'text is required'}), 400
+
+        print(f"Building knowledge graph for user: {current_user['id']}")
+        kg = kg_builder.build(text, context)
+
+        return jsonify({
+            'knowledge_graph': kg,
+            'message': 'Knowledge graph built successfully',
+        }), 200
+    except Exception as e:
+        print(f"KG build error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/knowledge-graph/export', methods=['POST'])
+@token_required
+def export_knowledge_graph(current_user):
+    """Export a knowledge graph in RDF, JSON-LD, or GraphML format."""
+    try:
+        data = request.get_json()
+        kg = data.get('knowledge_graph')
+        fmt = data.get('format', 'json-ld').lower()
+
+        if not kg:
+            return jsonify({'error': 'knowledge_graph is required'}), 400
+
+        allowed_formats = {'json-ld', 'rdf', 'graphml'}
+        if fmt not in allowed_formats:
+            return jsonify({
+                'error': f'format must be one of: {", ".join(allowed_formats)}'
+            }), 400
+
+        content, mime_type = kg_serializer.serialize(kg, fmt)
+        return jsonify({
+            'content': content,
+            'format': fmt,
+            'mime_type': mime_type,
+        }), 200
+    except Exception as e:
+        print(f"KG export error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/knowledge-graph/query', methods=['POST'])
+@token_required
+def query_knowledge_graph(current_user):
+    """Query the knowledge graph to obtain improved, grounded answers."""
+    try:
+        data = request.get_json()
+        kg = data.get('knowledge_graph')
+        question = data.get('question')
+
+        if not kg or not question:
+            return jsonify({'error': 'knowledge_graph and question are required'}), 400
+
+        print(f"KG query from user {current_user['id']}: {question}")
+        answer = kg_builder.query(kg, question)
+
+        return jsonify({
+            'question': question,
+            'answer': answer,
+        }), 200
+    except Exception as e:
+        print(f"KG query error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Dataset generation endpoint
+# ---------------------------------------------------------------------------
+
+@app.route('/api/dataset', methods=['POST'])
+@token_required
+def generate_dataset(current_user):
+    """Generate a training dataset from a knowledge graph."""
+    try:
+        data = request.get_json()
+        kg = data.get('knowledge_graph')
+        source_text = data.get('text', '')
+        fmt = data.get('format', 'json').lower()
+
+        if not kg:
+            return jsonify({'error': 'knowledge_graph is required'}), 400
+
+        allowed_formats = {'json', 'csv'}
+        if fmt not in allowed_formats:
+            return jsonify({
+                'error': f'format must be one of: {", ".join(allowed_formats)}'
+            }), 400
+
+        records = dataset_generator.generate(kg, source_text)
+
+        if fmt == 'csv':
+            content = dataset_generator.to_csv(records)
+        else:
+            content = dataset_generator.to_json(records)
+
+        return jsonify({
+            'content': content,
+            'format': fmt,
+            'record_count': len(records),
+            'message': 'Dataset generated successfully',
+        }), 200
+    except Exception as e:
+        print(f"Dataset generation error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Evaluation endpoint
+# ---------------------------------------------------------------------------
+
+@app.route('/api/evaluate', methods=['POST'])
+@token_required
+def evaluate(current_user):
+    """Evaluate a knowledge graph (optionally against a reference)."""
+    try:
+        data = request.get_json()
+        kg = data.get('knowledge_graph')
+        reference = data.get('reference_kg', None)
+
+        if not kg:
+            return jsonify({'error': 'knowledge_graph is required'}), 400
+
+        metrics = evaluation_framework.evaluate_kg(kg, reference)
+
+        return jsonify({
+            'metrics': metrics,
+            'message': 'Evaluation completed',
+        }), 200
+    except Exception as e:
+        print(f"Evaluation error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

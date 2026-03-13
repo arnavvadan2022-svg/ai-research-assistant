@@ -23,6 +23,9 @@
                 <button class="btn btn-secondary" id="historyBtn">
                     <i class="fas fa-history"></i> History
                 </button>
+                <button class="btn btn-secondary" id="kgBtn">
+                    <i class="fas fa-project-diagram"></i> Knowledge Graph
+                </button>
                 <button class="btn btn-secondary" id="logoutBtn" style="display: none;">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
@@ -123,6 +126,105 @@
                     <span class="close">&times;</span>
                     <h2>Search History</h2>
                     <div id="historyList"></div>
+                </div>
+            </div>
+
+            <!-- Knowledge Graph Modal -->
+            <div class="modal" id="kgModal">
+                <div class="modal-content modal-wide">
+                    <span class="close">&times;</span>
+                    <h2><i class="fas fa-project-diagram"></i> Knowledge Graph Builder</h2>
+                    <p class="subtitle">Extract entities, relations &amp; confidence scores — powered by Groq AI</p>
+
+                    <!-- KG Input -->
+                    <div class="kg-section">
+                        <label class="form-label">Document / Paper Text</label>
+                        <textarea id="kgTextInput" class="form-textarea" rows="6"
+                            placeholder="Paste the paper abstract or full text here…"></textarea>
+                        <div style="margin-top:0.75rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            <button id="kgBuildBtn" class="btn btn-primary">
+                                <i class="fas fa-cogs"></i> Build Knowledge Graph
+                            </button>
+                            <button id="kgClearBtn" class="btn btn-secondary">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KG Results -->
+                    <div id="kgResults" style="display:none;">
+                        <!-- Stats -->
+                        <div id="kgStats" class="kg-stats"></div>
+
+                        <!-- Tabs -->
+                        <div class="kg-tabs">
+                            <button class="kg-tab active" data-tab="entities">Entities</button>
+                            <button class="kg-tab" data-tab="relations">Relations</button>
+                            <button class="kg-tab" data-tab="query">Query KG</button>
+                            <button class="kg-tab" data-tab="export">Export</button>
+                            <button class="kg-tab" data-tab="dataset">Dataset</button>
+                            <button class="kg-tab" data-tab="evaluate">Evaluate</button>
+                        </div>
+
+                        <!-- Entities tab -->
+                        <div class="kg-tab-content active" id="tab-entities">
+                            <div id="kgEntitiesList" class="kg-list"></div>
+                        </div>
+
+                        <!-- Relations tab -->
+                        <div class="kg-tab-content" id="tab-relations">
+                            <div id="kgRelationsList" class="kg-list"></div>
+                        </div>
+
+                        <!-- Query tab -->
+                        <div class="kg-tab-content" id="tab-query">
+                            <label class="form-label">Ask a question about the knowledge graph</label>
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="text" id="kgQueryInput" class="form-input" style="flex:1;"
+                                    placeholder="e.g. What method is proposed?">
+                                <button id="kgQueryBtn" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Ask
+                                </button>
+                            </div>
+                            <div id="kgQueryAnswer" class="kg-answer" style="display:none;"></div>
+                        </div>
+
+                        <!-- Export tab -->
+                        <div class="kg-tab-content" id="tab-export">
+                            <label class="form-label">Serialisation Format</label>
+                            <select id="kgExportFormat" class="form-select" style="width:auto;">
+                                <option value="json-ld">JSON-LD</option>
+                                <option value="rdf">RDF (Turtle)</option>
+                                <option value="graphml">GraphML</option>
+                            </select>
+                            <button id="kgExportBtn" class="btn btn-primary" style="margin-top:0.75rem;">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                            <pre id="kgExportContent" class="kg-code" style="display:none;"></pre>
+                        </div>
+
+                        <!-- Dataset tab -->
+                        <div class="kg-tab-content" id="tab-dataset">
+                            <label class="form-label">Training Dataset Format</label>
+                            <select id="kgDatasetFormat" class="form-select" style="width:auto;">
+                                <option value="json">JSON</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                            <button id="kgDatasetBtn" class="btn btn-primary" style="margin-top:0.75rem;">
+                                <i class="fas fa-table"></i> Generate Dataset
+                            </button>
+                            <div id="kgDatasetInfo" style="display:none; margin-top:0.5rem;"></div>
+                            <pre id="kgDatasetContent" class="kg-code" style="display:none;"></pre>
+                        </div>
+
+                        <!-- Evaluate tab -->
+                        <div class="kg-tab-content" id="tab-evaluate">
+                            <button id="kgEvaluateBtn" class="btn btn-primary">
+                                <i class="fas fa-chart-bar"></i> Run Evaluation
+                            </button>
+                            <div id="kgMetrics" class="kg-metrics" style="display:none;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
