@@ -11,6 +11,7 @@ import networkx as nx
 # ─────────────────────────────────────────────
 ENTITY_PATTERNS: List[Tuple[str, str, float]] = [
     # (regex pattern, entity_type, base_confidence)
+    # Supported entity types: MODEL, TECHNIQUE, DATASET, METRIC, PERSON, YEAR, CONCEPT
     (r'\b(?:transformer|bert|gpt|llm|cnn|rnn|lstm|gan|vae|attention|'
      r'encoder|decoder|embedding|fine-tun\w+)\b',
      'MODEL', 0.90),
@@ -27,7 +28,7 @@ ENTITY_PATTERNS: List[Tuple[str, str, float]] = [
      'DATASET', 0.87),
     (r'\b[A-Z][a-z]+ (?:et al\.?|and [A-Z][a-z]+)\b',
      'PERSON', 0.80),
-    (r'\b(?:\d{4})\b',
+    (r'\b(?:19|20)\d{2}\b',
      'YEAR', 0.75),
     (r'\b[A-Z][a-zA-Z]{2,}(?:\s[A-Z][a-zA-Z]{2,}){0,3}\b',
      'CONCEPT', 0.70),

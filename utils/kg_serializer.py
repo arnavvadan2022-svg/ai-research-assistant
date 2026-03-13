@@ -1,4 +1,5 @@
 import json
+import re
 import xml.etree.ElementTree as ET
 from typing import Dict, List
 from urllib.parse import quote
@@ -219,7 +220,3 @@ class KGSerializer:
     def _data_el(parent: ET.Element, key: str, value: str):
         d = ET.SubElement(parent, 'data', {'key': key})
         d.text = value
-
-
-# Inline import to keep module importable without networkx installed
-import re
