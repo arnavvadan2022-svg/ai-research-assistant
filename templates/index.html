@@ -17,6 +17,9 @@
                 <span>AI Research Assistant</span>
             </div>
             <div class="nav-menu" id="navMenu">
+                <button class="btn btn-secondary" id="kgDistillBtn">
+                    <i class="fas fa-project-diagram"></i> KG Distillation
+                </button>
                 <button class="btn btn-secondary" id="savedPapersBtn">
                     <i class="fas fa-bookmark"></i> Saved Papers
                 </button>
@@ -123,6 +126,221 @@
                     <span class="close">&times;</span>
                     <h2>Search History</h2>
                     <div id="historyList"></div>
+                </div>
+            </div>
+
+            <!-- KG Distillation Modal -->
+            <div class="modal" id="kgDistillModal">
+                <div class="modal-content modal-wide">
+                    <span class="close">&times;</span>
+                    <h2><i class="fas fa-project-diagram"></i> KG Distillation Pipeline</h2>
+
+                    <!-- Pipeline Tabs -->
+                    <div class="kg-tabs">
+                        <button class="kg-tab active" data-tab="kg-build">
+                            <i class="fas fa-cubes"></i> Build KG
+                        </button>
+                        <button class="kg-tab" data-tab="kg-serialize">
+                            <i class="fas fa-file-export"></i> Serialize
+                        </button>
+                        <button class="kg-tab" data-tab="kg-retrieve">
+                            <i class="fas fa-search"></i> Retrieve
+                        </button>
+                        <button class="kg-tab" data-tab="kg-dataset">
+                            <i class="fas fa-database"></i> Dataset
+                        </button>
+                        <button class="kg-tab" data-tab="kg-distill">
+                            <i class="fas fa-graduation-cap"></i> Distill
+                        </button>
+                        <button class="kg-tab" data-tab="kg-evaluate">
+                            <i class="fas fa-chart-bar"></i> Evaluate
+                        </button>
+                    </div>
+
+                    <!-- Tab: Build KG -->
+                    <div class="kg-tab-content active" id="tab-kg-build">
+                        <p class="tab-desc">Extract entities, relations and confidence scores from any text to build a Knowledge Graph.</p>
+                        <div class="form-group">
+                            <label>Input Text (LLM output / research abstract)</label>
+                            <textarea id="kgInputText" class="form-input kg-textarea"
+                                      placeholder="Paste your text here…"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="kgBuildBtn">
+                            <i class="fas fa-hammer"></i> Build Knowledge Graph
+                        </button>
+                        <div id="kgBuildResult" class="kg-result" style="display:none;"></div>
+                    </div>
+
+                    <!-- Tab: Serialize -->
+                    <div class="kg-tab-content" id="tab-kg-serialize">
+                        <p class="tab-desc">Export a saved KG as RDF (Turtle), JSON-LD, or GraphML.</p>
+                        <div class="form-group">
+                            <label>KG ID</label>
+                            <input type="number" id="serializeKgId" class="form-input" placeholder="Enter KG ID">
+                        </div>
+                        <div class="form-group">
+                            <label>Format</label>
+                            <select id="serializeFormat" class="form-select">
+                                <option value="rdf">RDF (Turtle)</option>
+                                <option value="json-ld" selected>JSON-LD</option>
+                                <option value="graphml">GraphML</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="kgSerializeBtn">
+                            <i class="fas fa-file-export"></i> Serialize
+                        </button>
+                        <div id="kgSerializeResult" class="kg-result" style="display:none;"></div>
+                    </div>
+
+                    <!-- Tab: Retrieve -->
+                    <div class="kg-tab-content" id="tab-kg-retrieve">
+                        <p class="tab-desc">Query a KG for triples relevant to your question and optionally improve a base answer.</p>
+                        <div class="form-group">
+                            <label>KG ID</label>
+                            <input type="number" id="retrieveKgId" class="form-input" placeholder="Enter KG ID">
+                        </div>
+                        <div class="form-group">
+                            <label>Question</label>
+                            <input type="text" id="retrieveQuestion" class="form-input"
+                                   placeholder="What does the paper propose?">
+                        </div>
+                        <div class="form-group">
+                            <label>Base Answer (optional – will be enriched)</label>
+                            <textarea id="retrieveBaseAnswer" class="form-input kg-textarea-sm"
+                                      placeholder="Optional existing answer…"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="kgRetrieveBtn">
+                            <i class="fas fa-search"></i> Retrieve
+                        </button>
+                        <div id="kgRetrieveResult" class="kg-result" style="display:none;"></div>
+                    </div>
+
+                    <!-- Tab: Dataset Generator -->
+                    <div class="kg-tab-content" id="tab-kg-dataset">
+                        <p class="tab-desc">Generate a training dataset (JSON / JSONL / CSV) from a KG for student LLM fine-tuning.</p>
+                        <div class="form-group">
+                            <label>KG ID</label>
+                            <input type="number" id="datasetKgId" class="form-input" placeholder="Enter KG ID">
+                        </div>
+                        <div class="form-group kg-row">
+                            <div>
+                                <label>Format</label>
+                                <select id="datasetFormat" class="form-select">
+                                    <option value="json" selected>JSON</option>
+                                    <option value="jsonl">JSONL</option>
+                                    <option value="csv">CSV</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Min Confidence</label>
+                                <input type="number" id="datasetMinConf" class="form-input"
+                                       value="0.60" min="0" max="1" step="0.05">
+                            </div>
+                            <div>
+                                <label>Max Samples</label>
+                                <input type="number" id="datasetMaxSamples" class="form-input"
+                                       value="200" min="1" max="500">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" id="kgDatasetBtn">
+                            <i class="fas fa-database"></i> Generate Dataset
+                        </button>
+                        <div id="kgDatasetResult" class="kg-result" style="display:none;"></div>
+                    </div>
+
+                    <!-- Tab: Distillation -->
+                    <div class="kg-tab-content" id="tab-kg-distill">
+                        <p class="tab-desc">Run student LLM inference with KG context, compute supervision loss, or refine prompts.</p>
+
+                        <h3 class="kg-section-title">Student Inference</h3>
+                        <div class="form-group">
+                            <label>KG ID</label>
+                            <input type="number" id="inferKgId" class="form-input" placeholder="KG ID">
+                        </div>
+                        <div class="form-group">
+                            <label>Prompt</label>
+                            <textarea id="inferPrompt" class="form-input kg-textarea-sm"
+                                      placeholder="Enter a question for the student LLM…"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="kgInferBtn">
+                            <i class="fas fa-robot"></i> Run Inference
+                        </button>
+                        <div id="kgInferResult" class="kg-result" style="display:none;"></div>
+
+                        <hr class="kg-divider">
+
+                        <h3 class="kg-section-title">Supervision Loss</h3>
+                        <div class="form-group">
+                            <label>Teacher KG ID</label>
+                            <input type="number" id="lossTeacherKgId" class="form-input" placeholder="Teacher KG ID">
+                        </div>
+                        <div class="form-group">
+                            <label>Student Output Text</label>
+                            <textarea id="lossStudentText" class="form-input kg-textarea-sm"
+                                      placeholder="Paste the student LLM's response here…"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="kgLossBtn">
+                            <i class="fas fa-calculator"></i> Compute Loss
+                        </button>
+                        <div id="kgLossResult" class="kg-result" style="display:none;"></div>
+
+                        <hr class="kg-divider">
+
+                        <h3 class="kg-section-title">Prompt / KG Refinement</h3>
+                        <div class="form-group">
+                            <label>KG ID</label>
+                            <input type="number" id="refineKgId" class="form-input" placeholder="KG ID">
+                        </div>
+                        <div class="form-group">
+                            <label>Prompt</label>
+                            <textarea id="refinePrompt" class="form-input kg-textarea-sm"
+                                      placeholder="Enter prompt to refine…"></textarea>
+                        </div>
+                        <div class="form-group kg-row">
+                            <div>
+                                <label>Min Confidence</label>
+                                <input type="number" id="refineMinConf" class="form-input"
+                                       value="0.70" min="0" max="1" step="0.05">
+                            </div>
+                            <div>
+                                <label>Max Triples</label>
+                                <input type="number" id="refineMaxTriples" class="form-input"
+                                       value="15" min="1" max="50">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" id="kgRefineBtn">
+                            <i class="fas fa-magic"></i> Refine
+                        </button>
+                        <div id="kgRefineResult" class="kg-result" style="display:none;"></div>
+                    </div>
+
+                    <!-- Tab: Evaluate -->
+                    <div class="kg-tab-content" id="tab-kg-evaluate">
+                        <p class="tab-desc">Measure entity-level and relation-level precision / recall / F1 of student vs ground-truth outputs.</p>
+                        <div class="form-group">
+                            <label>Prediction Texts (one per line)</label>
+                            <textarea id="evalPredictions" class="form-input kg-textarea"
+                                      placeholder="Paste student LLM outputs here, one per line…"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Ground Truth Texts (one per line)</label>
+                            <textarea id="evalGroundTruth" class="form-input kg-textarea"
+                                      placeholder="Paste reference texts here, one per line…"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="kgEvalBtn">
+                            <i class="fas fa-chart-bar"></i> Evaluate
+                        </button>
+                        <div id="kgEvalResult" class="kg-result" style="display:none;"></div>
+                    </div>
+
+                    <!-- Saved KG List -->
+                    <div class="kg-saved-section">
+                        <h3><i class="fas fa-list"></i> Saved Knowledge Graphs</h3>
+                        <button class="btn btn-secondary btn-sm" id="kgListRefreshBtn">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <div id="kgSavedList" class="kg-saved-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
