@@ -34,6 +34,13 @@ class KnowledgeGraphBuilder:
     using the Groq LLM, then builds an in-memory knowledge graph.
     """
 
+    # Maximum number of characters of input text sent to the LLM
+    _MAX_TEXT_CHARS = 3000
+    # Maximum entities passed to relation-extraction prompt
+    _MAX_ENTITIES_FOR_RELATIONS = 20
+    # Maximum entities returned by rule-based extraction
+    _MAX_RULE_ENTITIES = 30
+
     def __init__(self):
         self.groq_api_key = Config.GROQ_API_KEY
         self.groq_model = Config.GROQ_MODEL
@@ -107,7 +114,7 @@ class KnowledgeGraphBuilder:
         )
         user = (
             "Extract all important named entities from the following text.\n\n"
-            f"TEXT:\n{text[:3000]}\n\n"
+            f"TEXT:\n{text[:self._MAX_TEXT_CHARS]}\n\n"
             "Return only the JSON array, no other text."
         )
         raw = self._groq_chat(system, user, max_tokens=800)
@@ -115,7 +122,7 @@ class KnowledgeGraphBuilder:
 
     def _groq_extract_relations(self, text: str, entities: List[Dict]) -> List[Dict]:
         """Ask Groq to extract relations between entities with confidence scores."""
-        entity_names = [e["entity"] for e in entities[:20]]
+        entity_names = [e["entity"] for e in entities[:self._MAX_ENTITIES_FOR_RELATIONS]]
         system = (
             "You are a knowledge extraction assistant. "
             "Your task is to extract relations between entities in academic text. "
@@ -126,7 +133,7 @@ class KnowledgeGraphBuilder:
         user = (
             "Extract relations between the following entities from the text.\n\n"
             f"ENTITIES: {json.dumps(entity_names)}\n\n"
-            f"TEXT:\n{text[:3000]}\n\n"
+            f"TEXT:\n{text[:self._MAX_TEXT_CHARS]}\n\n"
             "Return only the JSON array, no other text."
         )
         raw = self._groq_chat(system, user, max_tokens=1000)
@@ -168,7 +175,7 @@ class KnowledgeGraphBuilder:
                     "description": f"Key term: {kw}"
                 })
 
-        return entities[:30]
+        return entities[:self._MAX_RULE_ENTITIES]
 
     def _rule_extract_relations(self, text: str, entities: List[Dict]) -> List[Dict]:
         """Simple co-occurrence-based relation extraction fallback."""
@@ -194,29 +201,36 @@ class KnowledgeGraphBuilder:
 
     def _build_graph(self, entities: List[Dict], relations: List[Dict]) -> Dict:
         """Build a simple node/edge graph structure."""
-        nodes = {}
-        for e in entities:
-            node_id = self._safe_id(e["entity"])
+        nodes: Dict[str, Dict] = {}
+        # Map from original entity label to its unique node ID
+        label_to_id: Dict[str, str] = {}
+
+        def _register_node(label: str, etype: str = "CONCEPT", desc: str = "") -> str:
+            """Return a unique node ID for the given label, creating it if needed."""
+            if label in label_to_id:
+                return label_to_id[label]
+            base_id = self._safe_id(label)
+            node_id = base_id
+            counter = 1
+            while node_id in nodes:
+                node_id = f"{base_id}_{counter}"
+                counter += 1
             nodes[node_id] = {
                 "id": node_id,
-                "label": e["entity"],
-                "type": e.get("type", "CONCEPT"),
-                "description": e.get("description", ""),
+                "label": label,
+                "type": etype,
+                "description": desc,
             }
+            label_to_id[label] = node_id
+            return node_id
+
+        for e in entities:
+            _register_node(e["entity"], e.get("type", "CONCEPT"), e.get("description", ""))
 
         edges = []
         for r in relations:
-            src = self._safe_id(r["subject"])
-            dst = self._safe_id(r["object"])
-            # Auto-create missing nodes referenced in relations
-            for node_id, label in [(src, r["subject"]), (dst, r["object"])]:
-                if node_id not in nodes:
-                    nodes[node_id] = {
-                        "id": node_id,
-                        "label": label,
-                        "type": "CONCEPT",
-                        "description": "",
-                    }
+            src = _register_node(r["subject"])
+            dst = _register_node(r["object"])
             edges.append({
                 "source": src,
                 "target": dst,

@@ -116,6 +116,13 @@ class EvaluationFramework:
         n = len(nodes)
         e = len(edges)
 
+        # Density (directed graph: max edges = n*(n-1))
+        if n > 1:
+            max_edges = n * (n - 1)
+            density = e / max_edges
+        else:
+            density = 0.0
+
         # Average degree
         degree: Dict[str, int] = {}
         for edge in edges:
@@ -123,10 +130,6 @@ class EvaluationFramework:
             degree[edge["target"]] = degree.get(edge["target"], 0) + 1
 
         avg_degree = sum(degree.values()) / n if n else 0.0
-
-        # Density
-        max_edges = n * (n - 1) if n > 1 else 1
-        density = e / max_edges
 
         # Type distribution
         type_dist: Dict[str, int] = {}
