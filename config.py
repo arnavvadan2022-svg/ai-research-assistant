@@ -17,6 +17,8 @@ class Config:
     
     # API Keys
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+    GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama3-8b-8192')
     ARXIV_API_URL = 'http://export.arxiv.org/api/query'
     
     # Application Settings

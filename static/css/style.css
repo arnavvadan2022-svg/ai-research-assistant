@@ -436,3 +436,229 @@ body {
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
+
+/* -------------------------------------------------------------------------
+   Knowledge Graph UI
+   ---------------------------------------------------------------------- */
+
+/* Wider modal for KG */
+.modal-wide {
+    max-width: 1000px;
+}
+
+/* KG section inside modal */
+.kg-section {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: var(--dark);
+}
+
+.form-textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Stats bar */
+.kg-stats {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+}
+
+.kg-stat {
+    background: var(--light);
+    border-radius: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    color: var(--text-light);
+    text-align: center;
+}
+
+.kg-stat span {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1;
+}
+
+/* KG Tabs */
+.kg-tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.kg-tab {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-light);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+
+.kg-tab:hover {
+    color: var(--primary);
+}
+
+.kg-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.kg-tab-content {
+    display: none;
+}
+
+.kg-tab-content.active {
+    display: block;
+}
+
+/* KG List items */
+.kg-list {
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.kg-item {
+    background: var(--light);
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Entity type badges */
+.kg-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.kg-type-concept    { background: #dbeafe; color: #1d4ed8; }
+.kg-type-method     { background: #d1fae5; color: #065f46; }
+.kg-type-dataset    { background: #fef3c7; color: #92400e; }
+.kg-type-metric     { background: #ede9fe; color: #5b21b6; }
+.kg-type-author     { background: #fce7f3; color: #9d174d; }
+.kg-type-institution{ background: #ffedd5; color: #9a3412; }
+.kg-type-field      { background: #e0f2fe; color: #0369a1; }
+.kg-type-other      { background: var(--border); color: var(--text-light); }
+
+.kg-desc {
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
+/* Relation arrows */
+.kg-arrow {
+    color: var(--text-light);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+/* Confidence bar */
+.kg-conf {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+.kg-conf-bar {
+    display: inline-block;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--primary);
+    min-width: 4px;
+    max-width: 80px;
+}
+
+/* KG Answer box */
+.kg-answer {
+    margin-top: 1rem;
+    background: var(--light);
+    border-left: 4px solid var(--primary);
+    padding: 1rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
+/* Code/preformatted blocks */
+.kg-code {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.78rem;
+    overflow-x: auto;
+    max-height: 350px;
+    overflow-y: auto;
+    margin-top: 0.75rem;
+    white-space: pre;
+}
+
+/* Metrics box */
+.kg-metrics {
+    margin-top: 1rem;
+}
+
+/* Badge */
+.badge {
+    display: inline-block;
+    background: var(--success);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: var(--white);
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}

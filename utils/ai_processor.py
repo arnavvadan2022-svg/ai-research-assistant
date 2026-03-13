@@ -6,32 +6,71 @@ from config import Config
 
 class AIProcessor:
     def __init__(self):
-        self.api_key = Config.OPENAI_API_KEY
+        self.groq_api_key = Config.GROQ_API_KEY
+        self.groq_model = Config.GROQ_MODEL
+        self.openai_api_key = Config.OPENAI_API_KEY
         self.hf_api_url = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
-        print("✅ AI Processor initialized (using free Hugging Face API)")
+        if self.groq_api_key:
+            print("✅ AI Processor initialized (using Groq API)")
+        else:
+            print("✅ AI Processor initialized (using free Hugging Face API)")
+
+    # ------------------------------------------------------------------
+    # Groq helpers
+    # ------------------------------------------------------------------
+
+    def _groq_chat(self, system_prompt: str, user_prompt: str, max_tokens: int = 512) -> str:
+        """Send a chat request to the Groq API and return the text response."""
+        from groq import Groq
+        client = Groq(api_key=self.groq_api_key)
+        completion = client.chat.completions.create(
+            model=self.groq_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=max_tokens,
+            temperature=0.7,
+        )
+        return completion.choices[0].message.content.strip()
+
+    # ------------------------------------------------------------------
+    # Summarisation
+    # ------------------------------------------------------------------
 
     def summarize(self, text: str, max_length: int = 500) -> str:
-        """
-        Generate a summary using free AI or smart extraction
-        """
-        # Try OpenAI if key exists
-        if self.api_key:
+        """Generate a summary using Groq (preferred), then OpenAI, then HF."""
+        if self.groq_api_key:
+            try:
+                return self._groq_summarize(text, max_length)
+            except Exception as e:
+                print(f"Groq summarization failed, falling back: {e}")
+
+        if self.openai_api_key:
             try:
                 return self._openai_summarize(text, max_length)
-            except:
+            except Exception:
                 pass
 
-        # Try free Hugging Face API
         try:
             return self._huggingface_api_summarize(text, max_length)
         except Exception as e:
             print(f"Hugging Face API unavailable, using smart extraction: {e}")
             return self._smart_summarize(text, max_length)
 
+    def _groq_summarize(self, text: str, max_length: int) -> str:
+        """Groq-powered summarisation."""
+        summary = self._groq_chat(
+            system_prompt="You are a research assistant that summarizes academic papers concisely.",
+            user_prompt=f"Summarize this research paper abstract in {max_length} characters or less:\n\n{text}",
+            max_tokens=300,
+        )
+        return f"🤖 Groq AI Summary:\n\n{summary}"
+
     def _openai_summarize(self, text: str, max_length: int) -> str:
         """OpenAI summarization (requires API key)"""
         import openai
-        openai.api_key = self.api_key
+        openai.api_key = self.openai_api_key
 
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -47,13 +86,9 @@ class AIProcessor:
         return response.choices[0].message.content.strip()
 
     def _huggingface_api_summarize(self, text: str, max_length: int) -> str:
-        """
-        Use FREE Hugging Face Inference API (no installation needed!)
-        """
-        # Limit input text (API has limits)
+        """Use FREE Hugging Face Inference API (no installation needed!)"""
         input_text = text[:1024] if len(text) > 1024 else text
 
-        # Call free public API
         response = requests.post(
             self.hf_api_url,
             headers={"Content-Type": "application/json"},
@@ -71,7 +106,6 @@ class AIProcessor:
         if response.status_code == 200:
             result = response.json()
 
-            # Handle different response formats
             if isinstance(result, list) and len(result) > 0:
                 summary = result[0].get('summary_text', '')
                 if summary:
@@ -81,42 +115,34 @@ class AIProcessor:
                 if summary:
                     return f"🤖 AI-Powered Summary:\n\n{summary}"
 
-        # If API returns error or is loading
         if response.status_code == 503:
             print("⏳ AI model is loading, using smart extraction...")
 
-        # Fallback to smart extraction
         return self._smart_summarize(text, max_length)
 
     def _smart_summarize(self, text: str, max_length: int) -> str:
-        """
-        Smart extractive summarization (always works!)
-        """
+        """Smart extractive summarization (always works!)"""
         if len(text) <= max_length:
             return text
 
-        # Split into sentences
         sentences = []
         for s in text.replace('! ', '!|').replace('? ', '?|').replace('. ', '.|').split('|'):
             s = s.strip()
-            if s and len(s) > 10:  # Filter out very short fragments
+            if s and len(s) > 10:
                 sentences.append(s)
 
         if not sentences:
             return text[:max_length] + "..."
 
-        # Score sentences based on importance
         scored = []
         for i, sentence in enumerate(sentences):
             score = 0
 
-            # First and last sentences are usually important
             if i == 0:
                 score += 5
             if i == len(sentences) - 1:
                 score += 2
 
-            # Look for key academic terms
             important_words = [
                 'propose', 'present', 'show', 'demonstrate', 'find', 'discover',
                 'result', 'conclude', 'method', 'approach', 'novel', 'new',
@@ -129,7 +155,6 @@ class AIProcessor:
                 if word in sentence_lower:
                     score += 2
 
-            # Prefer medium-length sentences (not too short or too long)
             length = len(sentence)
             if 40 < length < 200:
                 score += 2
@@ -138,10 +163,8 @@ class AIProcessor:
 
             scored.append((sentence, score))
 
-        # Sort by score (highest first)
         scored.sort(key=lambda x: x[1], reverse=True)
 
-        # Build summary with highest-scoring sentences
         summary = ""
         used_sentences = []
 
@@ -149,32 +172,59 @@ class AIProcessor:
             if len(summary) + len(sentence) + 2 <= max_length:
                 used_sentences.append(sentence)
                 summary += sentence + " "
-            if len(summary) >= max_length * 0.85:  # Stop at 85% of max
+            if len(summary) >= max_length * 0.85:
                 break
 
-        # Add prefix to indicate it's smart extraction
         result = summary.strip()
         if result:
             return f"📝 Smart Summary:\n\n{result}"
 
         return sentences[0] + "..."
 
+    # ------------------------------------------------------------------
+    # Analysis
+    # ------------------------------------------------------------------
+
     def analyze(self, text: str, analysis_type: str = 'general') -> Dict:
-        """
-        Perform smart analysis on the research paper
-        """
-        if self.api_key:
+        """Perform analysis on the research paper using Groq (preferred)."""
+        if self.groq_api_key:
+            try:
+                return self._groq_analyze(text, analysis_type)
+            except Exception as e:
+                print(f"Groq analysis failed, falling back: {e}")
+
+        if self.openai_api_key:
             try:
                 return self._openai_analyze(text, analysis_type)
-            except:
+            except Exception:
                 pass
 
         return self._smart_analyze(text, analysis_type)
 
+    def _groq_analyze(self, text: str, analysis_type: str) -> Dict:
+        """Groq-powered analysis."""
+        prompts = {
+            'general': "Analyze this research paper and provide key insights, methodology, and findings.",
+            'methodology': "Explain the methodology used in this research paper.",
+            'findings': "Summarize the key findings and results of this research paper.",
+            'implications': "Discuss the implications and potential applications of this research."
+        }
+        prompt = prompts.get(analysis_type, prompts['general'])
+        content = self._groq_chat(
+            system_prompt="You are a research assistant that analyzes academic papers.",
+            user_prompt=f"{prompt}\n\nPaper abstract:\n{text}",
+            max_tokens=600,
+        )
+        return {
+            'type': analysis_type,
+            'content': content,
+            'model': self.groq_model,
+        }
+
     def _openai_analyze(self, text: str, analysis_type: str) -> Dict:
         """OpenAI analysis (requires API key)"""
         import openai
-        openai.api_key = self.api_key
+        openai.api_key = self.openai_api_key
 
         prompts = {
             'general': "Analyze this research paper and provide key insights, methodology, and findings.",
@@ -206,7 +256,6 @@ class AIProcessor:
         keywords = self.extract_keywords(text, 15)
         sentences = [s.strip() for s in text.replace('. ', '.|').split('|') if s.strip()]
 
-        # Extract key sentences
         key_sentences = self._extract_key_sentences(sentences, 4)
 
         analysis_templates = {
@@ -219,7 +268,7 @@ class AIProcessor:
 📋 Main Points:
 {key_sentences}
 
-💡 This analysis uses smart extraction. For AI-powered deep analysis, add an OpenAI API key.
+💡 This analysis uses smart extraction. For AI-powered deep analysis, add a Groq API key.
             """,
             'methodology': f"""
 📊 Methodology Analysis
@@ -230,7 +279,7 @@ class AIProcessor:
 📝 Key Methodological Points:
 {key_sentences}
 
-💡 For detailed methodology analysis, consider adding an OpenAI API key.
+💡 For detailed methodology analysis, consider adding a Groq API key.
             """,
             'findings': f"""
 📊 Findings Analysis
@@ -241,7 +290,7 @@ class AIProcessor:
 📈 Main Findings:
 {key_sentences}
 
-💡 For in-depth findings analysis, consider adding an OpenAI API key.
+💡 For in-depth findings analysis, consider adding a Groq API key.
             """,
             'implications': f"""
 📊 Implications Analysis
@@ -252,7 +301,7 @@ class AIProcessor:
 💭 Potential Implications:
 {key_sentences}
 
-💡 For detailed implications analysis, consider adding an OpenAI API key.
+💡 For detailed implications analysis, consider adding a Groq API key.
             """
         }
 
@@ -269,11 +318,10 @@ class AIProcessor:
         if len(sentences) <= count:
             return '\n'.join([f"• {s}" for s in sentences if s])
 
-        # Score sentences
         scored = []
         for i, sentence in enumerate(sentences):
-            score = 1.0 / (i + 1)  # Earlier sentences are more important
-            if len(sentence) > 30:  # Prefer longer, more informative sentences
+            score = 1.0 / (i + 1)
+            if len(sentence) > 30:
                 score += 0.5
             scored.append((sentence, score))
 
@@ -282,12 +330,9 @@ class AIProcessor:
         return '\n'.join([f"• {s[0]}" for s in scored[:count]])
 
     def extract_keywords(self, text: str, num_keywords: int = 10) -> list:
-        """
-        Extract keywords from text
-        """
+        """Extract keywords from text"""
         words = text.lower().split()
 
-        # Expanded stop words list
         stop_words = {
             'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
             'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
@@ -303,20 +348,16 @@ class AIProcessor:
             'also', 'its', 'our', 'their', 'your', 'his', 'her', 'them', 'us'
         }
 
-        # Clean and filter words
         keywords = []
         for word in words:
-            # Remove punctuation
             word = ''.join(c for c in word if c.isalnum())
             if word and word not in stop_words and len(word) > 3:
                 keywords.append(word)
 
-        # Count frequency
         word_count = {}
         for word in keywords:
             word_count[word] = word_count.get(word, 0) + 1
 
-        # Sort by frequency
         sorted_words = sorted(word_count.items(), key=lambda x: x[1], reverse=True)
 
         return [word for word, count in sorted_words[:num_keywords]]

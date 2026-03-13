@@ -223,6 +223,9 @@ function createPaperCard(paper) {
             <button class="btn btn-secondary btn-sm summarize-btn" data-abstract="${escapeHtml(paper.abstract)}" data-id="${paper.id}">
                 <i class="fas fa-magic"></i> Summarize
             </button>
+            <button class="btn btn-secondary btn-sm kg-btn-card" data-abstract="${escapeHtml(paper.abstract)}">
+                <i class="fas fa-project-diagram"></i> Build KG
+            </button>
             <button class="btn btn-success btn-sm save-btn" data-paper='${JSON.stringify(paper).replace(/'/g, "&apos;")}'>
                 <i class="fas fa-bookmark"></i> Save
             </button>
@@ -250,6 +253,11 @@ function createPaperCard(paper) {
     saveBtn.addEventListener('click', function() {
         const paperData = JSON.parse(this.getAttribute('data-paper'));
         savePaperToLibrary(paperData);
+    });
+
+    const kgCardBtn = card.querySelector('.kg-btn-card');
+    kgCardBtn.addEventListener('click', function() {
+        buildKGFromPaper(this.getAttribute('data-abstract'));
     });
 
     return card;
@@ -611,3 +619,274 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ---------------------------------------------------------------------------
+// Knowledge Graph UI
+// ---------------------------------------------------------------------------
+
+const kgBtn = document.getElementById('kgBtn');
+kgBtn.addEventListener('click', openKGModal);
+
+let currentKG = null;   // stores the last built KG
+let currentKGText = ''; // stores the source text
+
+function openKGModal() {
+    document.getElementById('kgModal').style.display = 'block';
+}
+
+// KG tab switching
+document.querySelectorAll('.kg-tab').forEach(tab => {
+    tab.addEventListener('click', function () {
+        document.querySelectorAll('.kg-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.kg-tab-content').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    });
+});
+
+// Build KG
+document.getElementById('kgBuildBtn').addEventListener('click', buildKG);
+document.getElementById('kgClearBtn').addEventListener('click', () => {
+    document.getElementById('kgTextInput').value = '';
+    document.getElementById('kgResults').style.display = 'none';
+    currentKG = null;
+    currentKGText = '';
+});
+
+async function buildKG() {
+    const text = document.getElementById('kgTextInput').value.trim();
+    if (!text) { alert('Please enter some text first.'); return; }
+
+    const btn = document.getElementById('kgBuildBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Building…';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(API_BASE_URL + '/knowledge-graph', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ text })
+        });
+
+        const result = await response.json();
+        if (!response.ok) { alert(result.error || 'Failed to build KG'); return; }
+
+        currentKG = result.knowledge_graph;
+        currentKGText = text;
+        displayKG(currentKG);
+    } catch (err) {
+        console.error('KG build error:', err);
+        alert('Error building knowledge graph.');
+    } finally {
+        btn.innerHTML = '<i class="fas fa-cogs"></i> Build Knowledge Graph';
+        btn.disabled = false;
+    }
+}
+
+function displayKG(kg) {
+    const stats = kg.stats || {};
+    document.getElementById('kgStats').innerHTML = `
+        <div class="kg-stat"><span>${stats.entity_count ?? 0}</span> Entities</div>
+        <div class="kg-stat"><span>${stats.relation_count ?? 0}</span> Relations</div>
+        <div class="kg-stat"><span>${stats.node_count ?? 0}</span> Nodes</div>
+        <div class="kg-stat"><span>${stats.edge_count ?? 0}</span> Edges</div>
+    `;
+
+    // Entities
+    const eList = document.getElementById('kgEntitiesList');
+    eList.innerHTML = (kg.entities || []).map(e => `
+        <div class="kg-item">
+            <span class="kg-badge kg-type-${(e.type||'other').toLowerCase()}">${e.type || 'CONCEPT'}</span>
+            <strong>${escapeHtml(e.entity)}</strong>
+            ${e.description ? `<span class="kg-desc"> — ${escapeHtml(e.description)}</span>` : ''}
+        </div>
+    `).join('') || '<p class="text-muted">No entities found.</p>';
+
+    // Relations
+    const rList = document.getElementById('kgRelationsList');
+    rList.innerHTML = (kg.relations || []).map(r => {
+        const conf = parseFloat(r.confidence || 1).toFixed(2);
+        const pct = Math.round(conf * 100);
+        return `
+        <div class="kg-item">
+            <strong>${escapeHtml(r.subject)}</strong>
+            <span class="kg-arrow">──[${escapeHtml(r.predicate || 'related-to')}]──▶</span>
+            <strong>${escapeHtml(r.object)}</strong>
+            <span class="kg-conf">
+                <span class="kg-conf-bar" style="width:${pct}%"></span>
+                ${conf}
+            </span>
+        </div>`;
+    }).join('') || '<p class="text-muted">No relations found.</p>';
+
+    document.getElementById('kgResults').style.display = 'block';
+}
+
+// Query KG
+document.getElementById('kgQueryBtn').addEventListener('click', queryKG);
+document.getElementById('kgQueryInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter') queryKG();
+});
+
+async function queryKG() {
+    if (!currentKG) { alert('Build a knowledge graph first.'); return; }
+    const question = document.getElementById('kgQueryInput').value.trim();
+    if (!question) { alert('Enter a question.'); return; }
+
+    const btn = document.getElementById('kgQueryBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(API_BASE_URL + '/knowledge-graph/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ knowledge_graph: currentKG, question })
+        });
+
+        const result = await response.json();
+        const answerDiv = document.getElementById('kgQueryAnswer');
+        if (response.ok) {
+            answerDiv.innerHTML = `<strong>Q:</strong> ${escapeHtml(question)}<br><br><strong>A:</strong> ${escapeHtml(result.answer)}`;
+            answerDiv.style.display = 'block';
+        } else {
+            alert(result.error || 'Query failed');
+        }
+    } catch (err) {
+        console.error('KG query error:', err);
+        alert('Error querying knowledge graph.');
+    } finally {
+        btn.innerHTML = '<i class="fas fa-search"></i> Ask';
+        btn.disabled = false;
+    }
+}
+
+// Export KG
+document.getElementById('kgExportBtn').addEventListener('click', exportKG);
+
+async function exportKG() {
+    if (!currentKG) { alert('Build a knowledge graph first.'); return; }
+    const fmt = document.getElementById('kgExportFormat').value;
+    const btn = document.getElementById('kgExportBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting…';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(API_BASE_URL + '/knowledge-graph/export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ knowledge_graph: currentKG, format: fmt })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            const pre = document.getElementById('kgExportContent');
+            pre.textContent = result.content;
+            pre.style.display = 'block';
+        } else {
+            alert(result.error || 'Export failed');
+        }
+    } catch (err) {
+        console.error('KG export error:', err);
+        alert('Error exporting knowledge graph.');
+    } finally {
+        btn.innerHTML = '<i class="fas fa-download"></i> Export';
+        btn.disabled = false;
+    }
+}
+
+// Generate Dataset
+document.getElementById('kgDatasetBtn').addEventListener('click', generateDataset);
+
+async function generateDataset() {
+    if (!currentKG) { alert('Build a knowledge graph first.'); return; }
+    const fmt = document.getElementById('kgDatasetFormat').value;
+    const btn = document.getElementById('kgDatasetBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(API_BASE_URL + '/dataset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ knowledge_graph: currentKG, text: currentKGText, format: fmt })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            document.getElementById('kgDatasetInfo').innerHTML =
+                `<span class="badge">✅ ${result.record_count} training records generated</span>`;
+            document.getElementById('kgDatasetInfo').style.display = 'block';
+            const pre = document.getElementById('kgDatasetContent');
+            pre.textContent = result.content.substring(0, 3000) +
+                (result.content.length > 3000 ? '\n\n… (truncated for display)' : '');
+            pre.style.display = 'block';
+        } else {
+            alert(result.error || 'Dataset generation failed');
+        }
+    } catch (err) {
+        console.error('Dataset gen error:', err);
+        alert('Error generating dataset.');
+    } finally {
+        btn.innerHTML = '<i class="fas fa-table"></i> Generate Dataset';
+        btn.disabled = false;
+    }
+}
+
+// Evaluate KG
+document.getElementById('kgEvaluateBtn').addEventListener('click', evaluateKG);
+
+async function evaluateKG() {
+    if (!currentKG) { alert('Build a knowledge graph first.'); return; }
+    const btn = document.getElementById('kgEvaluateBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Evaluating…';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(API_BASE_URL + '/evaluate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ knowledge_graph: currentKG })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            renderMetrics(result.metrics);
+        } else {
+            alert(result.error || 'Evaluation failed');
+        }
+    } catch (err) {
+        console.error('Evaluate error:', err);
+        alert('Error running evaluation.');
+    } finally {
+        btn.innerHTML = '<i class="fas fa-chart-bar"></i> Run Evaluation';
+        btn.disabled = false;
+    }
+}
+
+function renderMetrics(metrics) {
+    const div = document.getElementById('kgMetrics');
+    div.innerHTML = `<pre class="kg-code">${JSON.stringify(metrics, null, 2)}</pre>`;
+    div.style.display = 'block';
+}
+
+// Helper: populate KG text input from a paper abstract
+function buildKGFromPaper(abstract) {
+    document.getElementById('kgTextInput').value = abstract;
+    openKGModal();
+}
