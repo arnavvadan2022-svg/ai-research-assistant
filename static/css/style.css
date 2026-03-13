@@ -436,3 +436,248 @@ body {
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
+
+/* ── KG Distillation Styles ─────────────────────────────────────────────── */
+
+/* Wide modal for the KG pipeline */
+.modal-wide {
+    max-width: 900px;
+}
+
+/* Pipeline tabs */
+.kg-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 1.2rem 0 1rem;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 0.5rem;
+}
+
+.kg-tab {
+    background: var(--light);
+    border: 1px solid var(--border);
+    border-radius: 6px 6px 0 0;
+    padding: 0.4rem 0.9rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-light);
+    transition: background 0.2s, color 0.2s;
+}
+
+.kg-tab:hover {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.kg-tab.active {
+    background: var(--primary);
+    color: var(--white);
+    border-color: var(--primary);
+}
+
+/* Tab content panels */
+.kg-tab-content {
+    display: none;
+}
+
+.kg-tab-content.active {
+    display: block;
+}
+
+.tab-desc {
+    color: var(--text-light);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Textareas */
+.kg-textarea {
+    min-height: 140px;
+    resize: vertical;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.kg-textarea-sm {
+    min-height: 80px;
+    resize: vertical;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+/* Result area */
+.kg-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: auto;
+    max-height: 480px;
+}
+
+/* KG stat badges */
+.kg-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.8rem;
+    align-items: center;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.badge-primary  { background: #ede9fe; color: var(--primary); }
+.badge-info     { background: #e0f2fe; color: #0369a1; }
+.badge-success  { background: #d1fae5; color: #065f46; }
+.badge-warning  { background: #fef3c7; color: #92400e; }
+.badge-danger   { background: #fee2e2; color: #991b1b; }
+.badge-type     { background: #fce7f3; color: #9d174d; font-size: 0.72rem; }
+.badge-predicate{ background: #e0e7ff; color: #3730a3; font-size: 0.72rem; }
+
+/* KG data table */
+.kg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.kg-table th {
+    background: var(--dark);
+    color: var(--white);
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+}
+
+.kg-table td {
+    padding: 0.35rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.kg-table tr:nth-child(even) td {
+    background: #f9fafb;
+}
+
+/* Confidence bar */
+.conf-bar {
+    display: inline-block;
+    width: 60px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 4px;
+    overflow: hidden;
+}
+
+.conf-bar div {
+    height: 100%;
+    background: var(--success);
+    border-radius: 3px;
+}
+
+/* Code/pre blocks */
+.kg-code {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 320px;
+}
+
+/* Dataset sample pairs */
+.dataset-pair {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.7rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+/* Distillation divider */
+.kg-divider {
+    border: none;
+    border-top: 2px dashed var(--border);
+    margin: 1.5rem 0;
+}
+
+/* Section titles inside tabs */
+.kg-section-title {
+    font-size: 1rem;
+    color: var(--dark);
+    margin: 0.8rem 0 0.5rem;
+}
+
+/* Loss detail */
+.kg-loss-detail {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+/* Saved KG list */
+.kg-saved-section {
+    margin-top: 2rem;
+    border-top: 2px solid var(--border);
+    padding-top: 1rem;
+}
+
+.kg-saved-section h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.kg-saved-list {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.kg-saved-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 0.4rem;
+    background: var(--white);
+    font-size: 0.85rem;
+}
+
+.kg-saved-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+/* Inline form row */
+.kg-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.kg-row > div {
+    flex: 1;
+}
+
+/* Error text in result divs */
+.error {
+    color: var(--danger);
+    font-weight: 500;
+}

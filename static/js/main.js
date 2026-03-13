@@ -611,3 +611,400 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ── KG Distillation Pipeline ───────────────────────────────────────────────
+
+const kgDistillBtn = document.getElementById('kgDistillBtn');
+kgDistillBtn.addEventListener('click', openKgDistillModal);
+
+function openKgDistillModal() {
+    const modal = document.getElementById('kgDistillModal');
+    modal.style.display = 'block';
+    loadKgList();
+}
+
+// Tab switching
+document.querySelectorAll('.kg-tab').forEach(tab => {
+    tab.addEventListener('click', function () {
+        document.querySelectorAll('.kg-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.kg-tab-content').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    });
+});
+
+// ── Build KG ──────────────────────────────────────────────────────────────
+document.getElementById('kgBuildBtn').addEventListener('click', async () => {
+    const text = document.getElementById('kgInputText').value.trim();
+    if (!text) { alert('Please enter some text.'); return; }
+
+    const resultDiv = document.getElementById('kgBuildResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="spinner"></div> Building knowledge graph…';
+
+    try {
+        const res = await apiPost('/kg/build', { text });
+        if (!res.ok) { const e = await res.json(); resultDiv.innerHTML = `<p class="error">Error: ${e.error}</p>`; return; }
+        const data = await res.json();
+        const g = data.graph_data;
+        resultDiv.innerHTML = `
+            <div class="kg-stats">
+                <span class="badge badge-primary">KG ID: ${data.kg_id}</span>
+                <span class="badge badge-info">${g.stats.entity_count} entities</span>
+                <span class="badge badge-info">${g.stats.relation_count} relations</span>
+                <span class="badge badge-success">Density: ${g.stats.density}</span>
+            </div>
+            <h4>Entities</h4>
+            ${renderEntityTable(g.entities)}
+            <h4>Relations</h4>
+            ${renderRelationTable(g.relations)}
+        `;
+        loadKgList();
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+});
+
+function renderEntityTable(entities) {
+    if (!entities.length) return '<p class="text-muted">No entities extracted.</p>';
+    return `<table class="kg-table">
+        <thead><tr><th>Entity</th><th>Type</th><th>Confidence</th><th>Count</th></tr></thead>
+        <tbody>${entities.slice(0, 30).map(e => `
+            <tr>
+                <td>${escapeHtml(e.text)}</td>
+                <td><span class="badge badge-type">${e.type}</span></td>
+                <td><div class="conf-bar"><div style="width:${Math.round(e.confidence*100)}%"></div></div>${e.confidence}</td>
+                <td>${e.occurrences}</td>
+            </tr>`).join('')}
+        </tbody></table>`;
+}
+
+function renderRelationTable(relations) {
+    if (!relations.length) return '<p class="text-muted">No relations detected.</p>';
+    return `<table class="kg-table">
+        <thead><tr><th>Subject</th><th>Predicate</th><th>Object</th><th>Conf</th></tr></thead>
+        <tbody>${relations.slice(0, 20).map(r => `
+            <tr>
+                <td>${escapeHtml(r.subject)}</td>
+                <td><span class="badge badge-predicate">${r.predicate}</span></td>
+                <td>${escapeHtml(r.object)}</td>
+                <td>${r.confidence}</td>
+            </tr>`).join('')}
+        </tbody></table>`;
+}
+
+// ── Serialize KG ───────────────────────────────────────────────────────────
+document.getElementById('kgSerializeBtn').addEventListener('click', async () => {
+    const kgId = document.getElementById('serializeKgId').value.trim();
+    const fmt  = document.getElementById('serializeFormat').value;
+    if (!kgId) { alert('Enter a KG ID.'); return; }
+
+    const resultDiv = document.getElementById('kgSerializeResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="spinner"></div> Serializing…';
+
+    try {
+        const res = await apiPost(`/kg/${kgId}/serialize`, { format: fmt });
+        if (!res.ok) { const e = await res.json(); resultDiv.innerHTML = `<p class="error">Error: ${e.error}</p>`; return; }
+        const data = await res.json();
+        resultDiv.innerHTML = `
+            <div class="kg-stats">
+                <span class="badge badge-primary">Format: ${data.format.toUpperCase()}</span>
+                <button class="btn btn-secondary btn-sm" onclick="downloadText('kg-${kgId}.${fmt}', this.closest('.kg-result').querySelector('pre').textContent, '${data.content_type}')">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+            <pre class="kg-code">${escapeHtml(data.content.slice(0, 3000))}${data.content.length > 3000 ? '\n…(truncated)' : ''}</pre>`;
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+});
+
+// ── Retrieve from KG ───────────────────────────────────────────────────────
+document.getElementById('kgRetrieveBtn').addEventListener('click', async () => {
+    const kgId      = document.getElementById('retrieveKgId').value.trim();
+    const question  = document.getElementById('retrieveQuestion').value.trim();
+    const baseAnswer = document.getElementById('retrieveBaseAnswer').value.trim();
+    if (!kgId || !question) { alert('KG ID and question are required.'); return; }
+
+    const resultDiv = document.getElementById('kgRetrieveResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="spinner"></div> Retrieving…';
+
+    try {
+        const res = await apiPost(`/kg/${kgId}/retrieve`, { question, base_answer: baseAnswer });
+        if (!res.ok) { const e = await res.json(); resultDiv.innerHTML = `<p class="error">Error: ${e.error}</p>`; return; }
+        const data = await res.json();
+        resultDiv.innerHTML = `
+            <h4>Context Summary</h4>
+            <pre class="kg-code">${escapeHtml(data.context_summary || 'No matching context found.')}</pre>
+            <h4>Relevant Triples (${data.relevant_triples.length})</h4>
+            ${renderRelationTable(data.relevant_triples)}
+            ${data.improved_answer ? `<h4>Improved Answer</h4><pre class="kg-code">${escapeHtml(data.improved_answer)}</pre>` : ''}
+        `;
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+});
+
+// ── Dataset Generator ──────────────────────────────────────────────────────
+document.getElementById('kgDatasetBtn').addEventListener('click', async () => {
+    const kgId       = document.getElementById('datasetKgId').value.trim();
+    const fmt        = document.getElementById('datasetFormat').value;
+    const minConf    = parseFloat(document.getElementById('datasetMinConf').value);
+    const maxSamples = parseInt(document.getElementById('datasetMaxSamples').value);
+    if (!kgId) { alert('Enter a KG ID.'); return; }
+
+    const resultDiv = document.getElementById('kgDatasetResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="spinner"></div> Generating dataset…';
+
+    try {
+        const res = await apiPost('/distill/dataset', {
+            kg_id: parseInt(kgId), format: fmt,
+            min_confidence: minConf, max_samples: maxSamples
+        });
+        if (!res.ok) { const e = await res.json(); resultDiv.innerHTML = `<p class="error">Error: ${e.error}</p>`; return; }
+        const data = await res.json();
+        const s = data.stats;
+        resultDiv.innerHTML = `
+            <div class="kg-stats">
+                <span class="badge badge-primary">Dataset ID: ${data.dataset_id}</span>
+                <span class="badge badge-info">${data.sample_count} samples</span>
+                <span class="badge badge-success">Avg conf: ${s.avg_confidence}</span>
+                <span class="badge badge-info">${s.unique_predicates} predicates</span>
+                <button class="btn btn-secondary btn-sm" onclick="downloadDataset(${data.dataset_id})">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+            <h4>Preview (first 5 samples)</h4>
+            ${data.preview.map(p => `
+                <div class="dataset-pair">
+                    <p><strong>Prompt:</strong> ${escapeHtml(p.prompt)}</p>
+                    <p><strong>Completion:</strong> ${escapeHtml(p.completion)}</p>
+                    <p class="text-muted">conf: ${p.confidence} | predicate: ${p.predicate}</p>
+                </div>`).join('')}
+        `;
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+});
+
+async function downloadDataset(datasetId) {
+    try {
+        const res = await apiFetch(`/distill/dataset/${datasetId}/download`);
+        const data = await res.json();
+        const mimes = { json: 'application/json', jsonl: 'application/jsonl', csv: 'text/csv' };
+        downloadText(`dataset-${datasetId}.${data.format}`, data.content, mimes[data.format] || 'text/plain');
+    } catch (err) {
+        alert('Download failed: ' + err.message);
+    }
+}
+
+// ── Student Inference ──────────────────────────────────────────────────────
+document.getElementById('kgInferBtn').addEventListener('click', async () => {
+    const kgId   = document.getElementById('inferKgId').value.trim();
+    const prompt = document.getElementById('inferPrompt').value.trim();
+    if (!kgId || !prompt) { alert('KG ID and prompt are required.'); return; }
+
+    const resultDiv = document.getElementById('kgInferResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="spinner"></div> Running student inference…';
+
+    try {
+        const res = await apiPost('/distill/student-inference', {
+            kg_id: parseInt(kgId), prompt
+        });
+        if (!res.ok) { const e = await res.json(); resultDiv.innerHTML = `<p class="error">Error: ${e.error}</p>`; return; }
+        const data = await res.json();
+        resultDiv.innerHTML = `
+            <h4>KG Context Injected</h4>
+            <pre class="kg-code">${escapeHtml(data.kg_context)}</pre>
+            <h4>Student Response</h4>
+            <pre class="kg-code">${escapeHtml(data.response)}</pre>
+            <div class="kg-stats">
+                <span class="badge badge-info">Student entities: ${data.student_graph.stats.entity_count}</span>
+                <span class="badge badge-info">Student relations: ${data.student_graph.stats.relation_count}</span>
+            </div>
+        `;
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+});
+
+// ── Supervision Loss ──────────────────────────────────────────────────────
+document.getElementById('kgLossBtn').addEventListener('click', async () => {
+    const teacherKgId  = document.getElementById('lossTeacherKgId').value.trim();
+    const studentText  = document.getElementById('lossStudentText').value.trim();
+    if (!teacherKgId || !studentText) { alert('Teacher KG ID and student text are required.'); return; }
+
+    const resultDiv = document.getElementById('kgLossResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="spinner"></div> Computing supervision loss…';
+
+    try {
+        const res = await apiPost('/distill/supervision-loss', {
+            teacher_kg_id: parseInt(teacherKgId), student_text: studentText
+        });
+        if (!res.ok) { const e = await res.json(); resultDiv.innerHTML = `<p class="error">Error: ${e.error}</p>`; return; }
+        const d = await res.json();
+        resultDiv.innerHTML = `
+            <div class="kg-stats">
+                <span class="badge badge-${lossColor(d.total_loss)}">Total Loss: ${d.total_loss}</span>
+                <span class="badge badge-info">Entity Loss: ${d.entity_coverage_loss}</span>
+                <span class="badge badge-info">Relation Loss: ${d.relation_coverage_loss}</span>
+                <span class="badge badge-info">Confidence Loss: ${d.confidence_alignment_loss}</span>
+            </div>
+            <div class="kg-loss-detail">
+                <p>Teacher: ${d.teacher_entity_count} entities, ${d.teacher_relation_count} relations</p>
+                <p>Student: ${d.student_entity_count} entities, ${d.student_relation_count} relations</p>
+            </div>
+        `;
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+});
+
+function lossColor(loss) {
+    if (loss < 0.3) return 'success';
+    if (loss < 0.6) return 'warning';
+    return 'danger';
+}
+
+// ── KG Refinement ─────────────────────────────────────────────────────────
+document.getElementById('kgRefineBtn').addEventListener('click', async () => {
+    const kgId    = document.getElementById('refineKgId').value.trim();
+    const prompt  = document.getElementById('refinePrompt').value.trim();
+    const minConf = parseFloat(document.getElementById('refineMinConf').value);
+    const maxT    = parseInt(document.getElementById('refineMaxTriples').value);
+    if (!kgId || !prompt) { alert('KG ID and prompt are required.'); return; }
+
+    const resultDiv = document.getElementById('kgRefineResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="spinner"></div> Refining…';
+
+    try {
+        const res = await apiPost('/distill/refine', {
+            kg_id: parseInt(kgId), prompt,
+            min_confidence: minConf, max_triples: maxT
+        });
+        if (!res.ok) { const e = await res.json(); resultDiv.innerHTML = `<p class="error">Error: ${e.error}</p>`; return; }
+        const data = await res.json();
+        resultDiv.innerHTML = `
+            <div class="kg-stats">
+                <span class="badge badge-success">Entities: ${data.original_entity_count} → ${data.pruned_entity_count}</span>
+                <span class="badge badge-success">Relations: ${data.original_relation_count} → ${data.pruned_relation_count}</span>
+            </div>
+            <h4>Refined Prompt</h4>
+            <pre class="kg-code">${escapeHtml(data.refined_prompt)}</pre>
+        `;
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+});
+
+// ── Evaluate ──────────────────────────────────────────────────────────────
+document.getElementById('kgEvalBtn').addEventListener('click', async () => {
+    const predLines = document.getElementById('evalPredictions').value.trim().split('\n').filter(Boolean);
+    const gtLines   = document.getElementById('evalGroundTruth').value.trim().split('\n').filter(Boolean);
+    if (!predLines.length || !gtLines.length) { alert('Both prediction and ground truth texts are required.'); return; }
+
+    const resultDiv = document.getElementById('kgEvalResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="spinner"></div> Evaluating…';
+
+    try {
+        const res = await apiPost('/distill/evaluate', {
+            prediction_texts: predLines, ground_truth_texts: gtLines
+        });
+        if (!res.ok) { const e = await res.json(); resultDiv.innerHTML = `<p class="error">Error: ${e.error}</p>`; return; }
+        const m = await res.json();
+        const em = m.entity_metrics;
+        const rm = m.relation_metrics;
+        resultDiv.innerHTML = `
+            <div class="kg-stats">
+                <span class="badge badge-primary">Overall F1: ${m.overall_f1}</span>
+                <span class="badge badge-info">${m.sample_count} samples</span>
+            </div>
+            <table class="kg-table">
+                <thead><tr><th>Level</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
+                <tbody>
+                    <tr><td>Entity</td><td>${em.precision}</td><td>${em.recall}</td><td>${em.f1}</td></tr>
+                    <tr><td>Relation</td><td>${rm.precision}</td><td>${rm.recall}</td><td>${rm.f1}</td></tr>
+                </tbody>
+            </table>
+        `;
+    } catch (err) {
+        resultDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+});
+
+// ── Saved KG List ──────────────────────────────────────────────────────────
+document.getElementById('kgListRefreshBtn').addEventListener('click', loadKgList);
+
+async function loadKgList() {
+    const listDiv = document.getElementById('kgSavedList');
+    listDiv.innerHTML = '<div class="spinner"></div>';
+    try {
+        const res = await apiFetch('/kg');
+        if (!res.ok) { listDiv.innerHTML = '<p class="error">Failed to load KGs.</p>'; return; }
+        const data = await res.json();
+        if (!data.knowledge_graphs.length) {
+            listDiv.innerHTML = '<p class="text-muted">No saved knowledge graphs yet. Build one above!</p>';
+            return;
+        }
+        listDiv.innerHTML = data.knowledge_graphs.map(kg => `
+            <div class="kg-saved-item">
+                <div class="kg-saved-info">
+                    <span class="badge badge-primary">ID: ${kg.id}</span>
+                    <span class="badge badge-info">${kg.entity_count} entities</span>
+                    <span class="badge badge-info">${kg.relation_count} relations</span>
+                    <span class="text-muted">${new Date(kg.created_at).toLocaleString()}</span>
+                    ${kg.source_paper_id ? `<span class="text-muted">Paper: ${kg.source_paper_id}</span>` : ''}
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="deleteKg(${kg.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>`).join('');
+    } catch (err) {
+        listDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    }
+}
+
+async function deleteKg(kgId) {
+    if (!confirm('Delete this knowledge graph and its datasets?')) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/kg/${kgId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.ok) { showNotification('KG deleted ✓', 'success'); loadKgList(); }
+        else { alert('Failed to delete KG.'); }
+    } catch (err) { alert('Error: ' + err.message); }
+}
+
+// ── Utility helpers ────────────────────────────────────────────────────────
+function apiPost(path, body) {
+    return fetch(API_BASE_URL + path, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(body),
+    });
+}
+
+function apiFetch(path) {
+    return fetch(API_BASE_URL + path, {
+        headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+}
+
+function downloadText(filename, content, mime) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
